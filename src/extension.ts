@@ -130,7 +130,7 @@ class SSHHostItem extends SSHTreeItem {
         super(`${name} (${host})`, vscode.TreeItemCollapsibleState.None);
         this.tooltip = `HostName: ${name}\nUser: ${user}\nPort: ${port}\nIdentityFile: ${identityFile || 'None'}`;
         this.command = {
-            command: 'ssh-extension.connectHost',
+            command: 'ssh-connect.connectHost',
             title: 'Connect',
             arguments: [host, user, port, identityFile],
         };
@@ -157,7 +157,7 @@ export function activate(context: vscode.ExtensionContext) {
 
     // Command: SSH Connect
     const connectHostCommand = vscode.commands.registerCommand(
-        'ssh-extension.connectHost',
+        'ssh-connect.connectHost',
         (host: string, user: string, port: string, identityFile: string | undefined) => {
             const identityOption = identityFile ? `-i ${identityFile}` : '';
             const sshCommand = `ssh ${identityOption} ${user}@${host} -p ${port}`;
@@ -172,12 +172,12 @@ export function activate(context: vscode.ExtensionContext) {
     );
 
     // Command: Refresh SSH Hosts
-    const refreshHostsCommand = vscode.commands.registerCommand('ssh-extension.refreshHosts', () => {
+    const refreshHostsCommand = vscode.commands.registerCommand('ssh-connect.refreshHosts', () => {
         sshHostsProvider.refresh();
     });
 
     // Command: Edit Fixed SSH Config
-    const editConfigCommand = vscode.commands.registerCommand('ssh-extension.editConfig', () => {
+    const editConfigCommand = vscode.commands.registerCommand('ssh-connect.editConfig', () => {
         vscode.workspace.openTextDocument(fixedConfigPath).then(doc => {
             vscode.window.showTextDocument(doc);
         });
