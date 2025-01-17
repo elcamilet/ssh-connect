@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   width="512"
+   height="512"
+   viewBox="0 0 135.46667 135.46667"
+   version="1.1"
+   id="svg5"
+   inkscape:version="1.2.2 (b0a8486541, 2022-12-01)"
+   sodipodi:docname="icon.svg"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <sodipodi:namedview
+     id="namedview7"
+     pagecolor="#ffffff"
+     bordercolor="#000000"
+     borderopacity="0.25"
+     inkscape:showpageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#d1d1d1"
+     inkscape:document-units="mm"
+     showgrid="false"
+     inkscape:zoom="1.0116647"
+     inkscape:cx="241.18664"
+     inkscape:cy="283.19661"
+     inkscape:window-width="1920"
+     inkscape:window-height="1019"
+     inkscape:window-x="1920"
+     inkscape:window-y="31"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="layer1" />
+  <defs
+     id="defs2" />
+  <g
+     inkscape:label="Layer 1"
+     inkscape:groupmode="layer"
+     id="layer1">
+    <g
+       id="g4906"
+       transform="translate(-1.2163033,0.89987844)">
+      <rect
+         style="opacity:0.727512;fill:#00222b;stroke:#ff0099;stroke-width:0.388111;stroke-linecap:round;stroke-linejoin:round;stroke-opacity:0.501251"
+         id="rect234"
+         width="135.07855"
+         height="135.07855"
+         x="1.4103588"
+         y="-0.70582294" />
+      <g
+         id="g4892"
+         transform="translate(0.84727819,1.2614992)">
+        <text
+           xml:space="preserve"
+           style="font-weight:bold;font-size:16.2473px;font-family:Montserrat;-inkscape-font-specification:'Montserrat Bold';text-align:end;text-anchor:end;opacity:1;fill:#6fef17;fill-opacity:1;stroke:#363636;stroke-width:1.62;stroke-linecap:round;stroke-linejoin:miter;stroke-dasharray:none;stroke-opacity:1;paint-order:stroke markers fill"
+           x="123.1401"
+           y="115.76733"
+           id="text1722"><tspan
+             sodipodi:role="line"
+             id="tspan1720"
+             style="stroke:#363636;stroke-width:1.62;stroke-dasharray:none;stroke-opacity:1"
+             x="123.1401"
+             y="115.76733">SSH Connect</tspan></text>
+        <g
+           id="g2697"
+           transform="translate(-0.344068)">
+          <path
+             style="fill:none;stroke:#00f8f2;stroke-width:6.74092;stroke-linecap:round;stroke-linejoin:miter;stroke-dasharray:none;stroke-opacity:1;paint-order:stroke markers fill"
+             d="m 27.30829,17.742074 -0.0666,38.151164 27.490468,-0.0221"
+             id="path1543-0" />
+          <text
+             xml:space="preserve"
+             style="font-weight:bold;font-size:35.5277px;font-family:Montserrat;-inkscape-font-specification:'Montserrat Bold';text-align:end;text-anchor:end;fill:#6fef17;fill-opacity:1;stroke:#363636;stroke-width:2.01175;stroke-linecap:round;stroke-linejoin:miter;stroke-dasharray:none;stroke-opacity:1;paint-order:stroke markers fill"
+             x="103.11257"
+             y="55.063046"
+             id="text1722-2"><tspan
+               sodipodi:role="line"
+               id="tspan1720-8"
+               style="stroke:#363636;stroke-width:2.01175;stroke-dasharray:none;stroke-opacity:1"
+               x="103.11257"
+               y="55.063046">&gt;_</tspan></text>
+        </g>
+        <g
+           id="g2702">
+          <path
+             style="fill:none;stroke:#00f8f2;stroke-width:6.74092;stroke-linecap:round;stroke-linejoin:miter;stroke-dasharray:none;stroke-opacity:1;paint-order:stroke markers fill"
+             d="m 26.964222,54.443504 -0.0666,38.151164 27.49047,-0.0221"
+             id="path1543-0-9" />
+          <text
+             xml:space="preserve"
+             style="font-weight:bold;font-size:35.5277px;font-family:Montserrat;-inkscape-font-specification:'Montserrat Bold';text-align:end;text-anchor:end;fill:#6fef17;fill-opacity:1;stroke:#363636;stroke-width:2.01175;stroke-linecap:round;stroke-linejoin:miter;stroke-dasharray:none;stroke-opacity:1;paint-order:stroke markers fill"
+             x="102.76851"
+             y="91.764473"
+             id="text1722-2-7"><tspan
+               sodipodi:role="line"
+               id="tspan1720-8-3"
+               style="stroke:#363636;stroke-width:2.01175;stroke-dasharray:none;stroke-opacity:1"
+               x="102.76851"
+               y="91.764473">&gt;_</tspan></text>
+        </g>
+      </g>
+    </g>
+  </g>
+</svg>
