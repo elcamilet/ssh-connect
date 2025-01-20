@@ -18,6 +18,10 @@
 - **Real-time updates**:
   - Saved changes in the configuration file are automatically reflected in the view.
 
+## Screenshots
+![Configuration file](https://raw.githubusercontent.com/elcamilet/ssh-connect/refs/heads/master/readme_config.png)
+
+![SSH Connection](https://raw.githubusercontent.com/elcamilet/ssh-connect/refs/heads/master/readme_connection.png)
 
 ## Installation
 

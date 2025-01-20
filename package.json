@@ -62,7 +62,7 @@
           "group": "navigation"
         }
       ]
-    }  
+    }
   },
   "scripts": {
     "vscode:prepublish": "npm run compile",
