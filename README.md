@@ -18,6 +18,9 @@
 - **Real-time updates**:
   - Saved changes in the configuration file are automatically reflected in the view.
 
+- **Custom Shell configuration**:
+  - You can specify your custom shell (zsh, bash, fish, ...) in the configuration file.
+
 ## Screenshots
 ![Configuration file](https://raw.githubusercontent.com/elcamilet/ssh-connect/refs/heads/master/readme_config.png)
 
@@ -64,6 +67,7 @@ The configuration file is located at:
 
 ```json
 {
+  "defaultShell": "/bin/bash",
   "groups": [
     {
       "name": "DevServers",

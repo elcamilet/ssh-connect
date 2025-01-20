@@ -2,7 +2,7 @@
   "name": "ssh-connect",
   "displayName": "SSH Connect",
   "description": "Manage and Connect to SSH hosts directly in VS Code",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "publisher": "elcamilet",
   "author": {
     "name": "Camilo Nevot",

@@ -2,6 +2,11 @@
 
 All notable changes to the "ssh-connect" extension will be documented in this file.
 
+## [0.0.4] - 2025-01-20
+
+### New feature
+- Added support for custom shell configuration.
+
 ## [0.0.3] - 2025-01-20
 
 ### Changed
