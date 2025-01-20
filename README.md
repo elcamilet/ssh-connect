@@ -16,7 +16,7 @@
   - Auto-generated JSON configuration file to define groups and servers.
 
 - **Real-time updates**:
-  - Changes in the configuration file are automatically reflected in the view.
+  - Saved changes in the configuration file are automatically reflected in the view.
 
 
 ## Installation
@@ -39,18 +39,17 @@ code --install-extension ssh-connect
    - Click on a server to start an SSH connection in an integrated terminal.
 
 3. **Edit configuration**:
-   - Use the `SSH Connect: Edit Config` command from the command palette (`Ctrl+Shift+P` or `Cmd+Shift+P`) to edit the `ssh-config.json` file.
+   - Use the `Edit Config` command from the command palette (`Ctrl+Shift+P` or `Cmd+Shift+P`) to edit the `ssh-config.json` file.
 
 4. **Refresh the view**:
-   - If you manually edited the configuration, run `SSH Connect: Refresh Hosts` from the command palette to refresh the view.
+   - If you manually edited the configuration, run `Refresh Hosts` from the command palette to refresh the view.
 
 ## Available Commands
 
 | Command                          | Description                                      |
 |----------------------------------|--------------------------------------------------|
-| `SSH Connect: Connect Host`      | Connect to a selected SSH server.                |
-| `SSH Connect: Refresh Hosts`     | Refresh the list of hosts in the view.           |
-| `SSH Connect: Edit Config`       | Open the fixed JSON configuration file.          |
+| `Refresh Hosts`     | Refresh the list of hosts in the view.           |
+| `Edit Config`       | Open the fixed JSON configuration file.          |
 
 ## Configuration File
 
@@ -103,12 +102,11 @@ The configuration file is located at:
 ## Requirements
 
 - Node.js v14 or higher (for extension development).
-- An operating system that supports integrated terminals in Visual Studio Code.
+- An operating system that supports integrated terminals in Visual Studio Code, like Linux. 
 
 ## Known Issues
 
 - The `ssh-config.json` file must exist for the extension to work correctly. If it does not exist, it will be automatically created with a basic template.
-- Auto refreshing of the view on configuration file save is not currently working. 
 
 ## Developer
 
@@ -118,4 +116,4 @@ Enjoy this extension and make working with SSH connections from VS Code easier! 
 
 ## License
 
-[MIT](LICENSE)
+[MIT](https://github.com/elcamilet/ssh-connect/blob/master/LICENSE)

@@ -2,12 +2,11 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
 
-// Ruta fija del archivo JSON de configuración SSH
 function getFixedSSHConfigPath(context: vscode.ExtensionContext): string {
     const configPath = path.join(context.globalStorageUri.fsPath, 'ssh-config.json');
     if (!fs.existsSync(configPath)) {
-        // Crear el archivo con una plantilla básica si no existe
         const template = {
+            defaultShell: "/bin/bash",
             groups: [
                 {
                     name: "DevServers",
@@ -45,37 +44,31 @@ function getFixedSSHConfigPath(context: vscode.ExtensionContext): string {
                 }
             ]
         };
-
         fs.mkdirSync(path.dirname(configPath), { recursive: true });
         fs.writeFileSync(configPath, JSON.stringify(template, null, 2), 'utf-8');
     }
     return configPath;
 }
 
-// TreeDataProvider para manejar los hosts SSH y sus grupos
 class SSHHostsProvider implements vscode.TreeDataProvider<SSHTreeItem> {
     private _onDidChangeTreeData: vscode.EventEmitter<SSHTreeItem | undefined | void> = new vscode.EventEmitter<
         SSHTreeItem | undefined | void
     >();
     readonly onDidChangeTreeData: vscode.Event<SSHTreeItem | undefined | void> = this._onDidChangeTreeData.event;
-
     private groups: SSHGroupItem[] = [];
-
     constructor(private configPath: string) {
         this.refresh();
     }
 
     refresh(): void {
-        console.log('Refreshing SSH Hosts...');
         const groupItems: SSHGroupItem[] = [];
-
         try {
             const configContent = fs.readFileSync(this.configPath, 'utf-8');
             const config = JSON.parse(configContent);
-
             for (const group of config.groups) {
                 const hosts = group.hosts.map((host: any) => {
                     return new SSHHostItem(
+                        host.shell || config.defaultShell,
                         host.host,
                         host.name,
                         host.user || group.defaultUser,
@@ -83,16 +76,13 @@ class SSHHostsProvider implements vscode.TreeDataProvider<SSHTreeItem> {
                         host.identityFile || group.defaultIdentityFile
                     );
                 });
-
                 groupItems.push(new SSHGroupItem(group.name, hosts));
             }
         } catch (error) {
             console.error(`Error reading ${this.configPath}: ${error}`);
         }
-
-        this.groups = groupItems; // Actualiza los grupos
-        console.log('Groups found:', groupItems.map(group => group.label));
-        this._onDidChangeTreeData.fire(); // Notifica el cambio al TreeView
+        this.groups = groupItems;
+        this._onDidChangeTreeData.fire();
     }
 
     getTreeItem(element: SSHTreeItem): vscode.TreeItem {
@@ -101,10 +91,10 @@ class SSHHostsProvider implements vscode.TreeDataProvider<SSHTreeItem> {
 
     getChildren(element?: SSHTreeItem): SSHTreeItem[] {
         if (!element) {
-            return this.groups; // Devuelve los grupos en la raíz
+            return this.groups;
         }
         if (element instanceof SSHGroupItem) {
-            return element.children; // Devuelve los hosts dentro del grupo
+            return element.children;
         }
         return [];
     }
@@ -121,6 +111,7 @@ class SSHGroupItem extends SSHTreeItem {
 
 class SSHHostItem extends SSHTreeItem {
     constructor(
+        public readonly shell: string,
         public readonly host: string,
         public readonly name: string,
         public readonly user: string,
@@ -132,56 +123,42 @@ class SSHHostItem extends SSHTreeItem {
         this.command = {
             command: 'ssh-connect.connectHost',
             title: 'Connect',
-            arguments: [host, user, port, identityFile],
+            arguments: [host, user, port, identityFile, shell],
         };
         this.contextValue = 'host';
     }
 }
 
 export function activate(context: vscode.ExtensionContext) {
-    // Ruta fija del archivo JSON de configuración SSH
     const fixedConfigPath = getFixedSSHConfigPath(context);
-
-    // TreeDataProvider para la vista SSH Hosts
     const sshHostsProvider = new SSHHostsProvider(fixedConfigPath);
     vscode.window.registerTreeDataProvider('sshHostsView', sshHostsProvider);
-
-    // Watcher para refrescar los hosts cuando se guarda el archivo de configuración
-    const configWatcher = vscode.workspace.createFileSystemWatcher(fixedConfigPath);
-
-    configWatcher.onDidChange(() => sshHostsProvider.refresh());
-    configWatcher.onDidCreate(() => sshHostsProvider.refresh());
-    configWatcher.onDidDelete(() => sshHostsProvider.refresh());
-
-    context.subscriptions.push(configWatcher);
-
-    // Command: SSH Connect
+    vscode.commands.registerCommand('workbench.action.files.save', () => {
+        sshHostsProvider.refresh();
+    });
     const connectHostCommand = vscode.commands.registerCommand(
         'ssh-connect.connectHost',
-        (host: string, user: string, port: string, identityFile: string | undefined) => {
+        (host: string, user: string, port: string, identityFile: string | undefined, shell: string) => {
+            if (!shell) { shell = "/bin/bash"; }
             const identityOption = identityFile ? `-i ${identityFile}` : '';
             const sshCommand = `ssh ${identityOption} ${user}@${host} -p ${port}`;
             const terminal = vscode.window.createTerminal({
                 name: host,
                 location: vscode.TerminalLocation.Editor,
                 isTransient: true,
+                shellPath: shell,
+                shellArgs: ['-c', sshCommand]
             });
-            terminal.sendText(sshCommand);
-            terminal.show(true); // Abrir a pantalla completa
+            terminal.show(true);
         }
     );
-
-    // Command: Refresh SSH Hosts
     const refreshHostsCommand = vscode.commands.registerCommand('ssh-connect.refreshHosts', () => {
         sshHostsProvider.refresh();
     });
-
-    // Command: Edit Fixed SSH Config
     const editConfigCommand = vscode.commands.registerCommand('ssh-connect.editConfig', () => {
         vscode.workspace.openTextDocument(fixedConfigPath).then(doc => {
             vscode.window.showTextDocument(doc);
         });
     });
-
     context.subscriptions.push(connectHostCommand, refreshHostsCommand, editConfigCommand);
 }

@@ -2,7 +2,7 @@
   "name": "ssh-connect",
   "displayName": "SSH Connect",
   "description": "Manage and Connect to SSH hosts directly in VS Code",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "publisher": "elcamilet",
   "author": {
     "name": "Camilo Nevot",
@@ -10,6 +10,7 @@
     "url": "https://github.com/elcamilet/ssh-connect"
   },
   "icon": "icon.png",
+  "repository": "https://github.com/elcamilet/ssh-connect.git",
   "engines": {
     "vscode": "^1.96.0"
   },
@@ -19,42 +20,49 @@
   "activationEvents": [],
   "main": "./out/extension.js",
   "contributes": {
-    "views": {
+    "viewsContainers": {
       "activitybar": [
         {
+          "id": "sshHostsViewContainer",
+          "title": "SSH Connect",
+          "icon": "resources/viewContainerIcon.svg"
+        }
+      ]
+    },
+    "views": {
+      "sshHostsViewContainer": [
+        {
           "id": "sshHostsView",
-          "name": "SSH Hosts"
+          "name": "SSH Connect"
         }
       ]
     },
     "commands": [
       {
-        "command": "ssh-connect.connect",
-        "title": "SSH Connect"
-      },
-      {
         "command": "ssh-connect.refreshHosts",
-        "title": "Refresh SSH Hosts"
+        "title": "Refresh hosts"
       },
       {
         "command": "ssh-connect.editConfig",
-        "title": "Edit SSH Config"
+        "title": "Edit config"
       }
     ],
     "menus": {
       "view/title": [
         {
+          "title": "Refresh hosts",
           "command": "ssh-connect.refreshHosts",
           "when": "view == sshHostsView",
           "group": "navigation"
         },
         {
+          "title": "Edit config",
           "command": "ssh-connect.editConfig",
           "when": "view == sshHostsView",
           "group": "navigation"
         }
       ]
-    }
+    }  
   },
   "scripts": {
     "vscode:prepublish": "npm run compile",
