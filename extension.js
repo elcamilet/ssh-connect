@@ -1,7 +1,7 @@
 const vscode = require('vscode');
 const path = require('path');
 const fs = require('fs');
-const keytar = require('keytar'); // Importar Keytar para la gestión de contraseñas
+const keytar = require('keytar');
 
 function getFixedSSHConfigPath(context) {
     const configPath = path.join(context.globalStorageUri.fsPath, 'ssh-config.json');

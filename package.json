@@ -17,8 +17,7 @@
   "categories": [
     "Other"
   ],
-  "activationEvents": [
-  ],
+  "activationEvents": [],
   "main": "./extension.js",
   "contributes": {
     "viewsContainers": {
@@ -79,18 +78,19 @@
     }
   },
   "scripts": {
-    "vscode:prepublish": "node ./extension.js",
+    "vscode:prepublish": "echo 'Prepublish script - No direct execution required'",
     "lint": "eslint src",
     "test": "vscode-test"
   },
   "devDependencies": {
-    "@types/vscode": "^1.96.0",
     "@types/node": "20.x",
-    "eslint": "^9.16.0"
+    "@types/vscode": "^1.96.0",
+    "eslint": "^9.16.0",
+    "vscode": "^1.1.37"
   },
   "dependencies": {
     "fs": "^0.0.1-security",
-    "ssh-config": "^4.3.0",
-    "keytar": "^7.9.0"
+    "keytar": "^7.9.0",
+    "ssh-config": "^4.3.0"
   }
 }
