@@ -2,7 +2,7 @@
   "name": "ssh-connect",
   "displayName": "SSH Connect",
   "description": "Manage and Connect to SSH hosts directly in VS Code",
-  "version": "0.0.4",
+  "version": "0.1.0",
   "publisher": "elcamilet",
   "author": {
     "name": "Camilo Nevot",
@@ -17,7 +17,8 @@
   "categories": [
     "Other"
   ],
-  "activationEvents": [],
+  "activationEvents": [
+  ],
   "main": "./extension.js",
   "contributes": {
     "viewsContainers": {
@@ -43,6 +44,18 @@
         "title": "Edit configuration file",
         "category": "SSH Connect",
         "icon": "resources/editConfig.svg"
+      },
+      {
+        "command": "ssh-connect.savePassword",
+        "title": "Save password for group or host",
+        "category": "SSH Connect",
+        "icon": "resources/savePassword.svg"
+      },
+      {
+        "command": "ssh-connect.deletePassword",
+        "title": "Delete saved password for group or host",
+        "category": "SSH Connect",
+        "icon": "resources/deletePassword.svg"
       }
     ],
     "menus": {
@@ -50,7 +63,17 @@
         {
           "command": "ssh-connect.editConfig",
           "when": "view == sshHostsView",
-          "group": "navigation"
+          "group": "navigation@1"
+        },
+        {
+          "command": "ssh-connect.savePassword",
+          "when": "view == sshHostsView",
+          "group": "navigation@2"
+        },
+        {
+          "command": "ssh-connect.deletePassword",
+          "when": "view == sshHostsView",
+          "group": "navigation@3"
         }
       ]
     }
@@ -67,7 +90,7 @@
   },
   "dependencies": {
     "fs": "^0.0.1-security",
-    "ssh-config": "^4.3.0"
+    "ssh-config": "^4.3.0",
+    "keytar": "^7.9.0"
   }
 }
-

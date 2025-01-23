@@ -7,7 +7,7 @@
 
 - **Hierarchical view of SSH servers**:
   - Group and organize your servers by categories (e.g., Development, Production).
-  - View server details like name, user, port, and SSH identity file in configiguration.
+  - View server details like name, user, port, and SSH identity file in configuration file.
 
 - **Quick server connection**:
   - Connect to a server with a single click from the SSH servers tree.
@@ -21,10 +21,16 @@
 - **Custom Shell configuration**:
   - You can specify your custom shell (zsh, bash, fish, ...) in the configuration file.
 
+- **Encrypted SSH Passwords**:
+  - Store passwords securely in the operating system's credential store.
+  - Connect directly to servers with stored passwords.
+
 ## Screenshots
 ![Configuration file](https://raw.githubusercontent.com/elcamilet/ssh-connect/refs/heads/master/readme_config.png)
 
 ![SSH Connection](https://raw.githubusercontent.com/elcamilet/ssh-connect/refs/heads/master/readme_connection.png)
+
+![Save password](https://raw.githubusercontent.com/elcamilet/ssh-connect/refs/heads/master/readme_save_password.png)
 
 ## Installation
 
@@ -46,17 +52,22 @@ code --install-extension ssh-connect
    - Click on a server to start an SSH connection in an integrated terminal.
 
 3. **Edit configuration**:
-   - Use the `Edit Config` command from the command palette (`Ctrl+Shift+P` or `Cmd+Shift+P`) to edit the `ssh-config.json` file.
+   - Use the `Edit configuration file` command from the command palette (`Ctrl+Shift+P` or `Cmd+Shift+P`) to edit the `ssh-config.json` file.
 
-4. **Refresh the view**:
-   - If you manually edited the configuration, run `Refresh Hosts` from the command palette to refresh the view.
+4. **Save passwords**:
+   - Use the `Save password for group or hos` command from the command palette (`Ctrl+Shift+P` or `Cmd+Shift+P`) to save passwords for the selected group or individual host.
+
+5. **Delete passwords**:
+   - Use the `Delete saved password for group or hos` command from the command palette (`Ctrl+Shift+P` or `Cmd+Shift+P`) to delete saved passwords for the selected group or individual host.
 
 ## Available Commands
 
 | Command                          | Description                                      |
 |----------------------------------|--------------------------------------------------|
-| `Refresh Hosts`     | Refresh the list of hosts in the view.           |
-| `Edit Config`       | Open the fixed JSON configuration file.          |
+| `Edit configuration file`       | Open the fixed JSON configuration file.          |
+| `Save password for group or host`       | Save password for group or host.
+| `Delete saved password for group or host`       | Delete saved password for group or host.
+
 
 ## Configuration File
 
@@ -70,7 +81,7 @@ The configuration file is located at:
   "defaultShell": "/bin/bash",
   "groups": [
     {
-      "name": "DevServers",
+      "name": "Development",
       "defaultUser": "root",
       "defaultPort": 22,
       "defaultIdentityFile": "",
@@ -85,11 +96,20 @@ The configuration file is located at:
         {
           "host": "10.10.0.1",
           "name": "Development Server 2"
+        },
+        {
+          "host": "10.10.0.2",
+          "name": "Development Server 3",
+          "user": "devuser2",
+          "port": 222,
+          "identityFile": "/tmp/cert.pem",
+          "useGroupPassword": "no",
+          "useIdentityFile": "yes"
         }
       ]
     },
     {
-      "name": "ProdServers",
+      "name": "Production",
       "defaultUser": "ec2-user",
       "defaultPort": 22,
       "defaultIdentityFile": "/path/to/prod-cert.pem",
@@ -106,13 +126,29 @@ The configuration file is located at:
   ]
 }
 ```
+- **Group configuration**:
+  - `name`: The name of the group.
+  - `defaultUser`: The default user to connect as. Defaults to `root`.
+  - `defaultPort`: The default port to connect to. Defaults to `22`.
+  - `defaultIdentityFile`: The default path to the SSH identity file.
+  - `hosts`: An array of host configurations.
+
+- **Minimum host configuration**:
+  - `host`: The host name or IP address.
+  - `name`: The visible name of the host.
+
+- **Optional host configuration**:
+  - `user`: The user to connect as.
+  - `port`: The port to connect to.
+  - `identityFile`: The path to the SSH identity file.
+  - `useGroupPassword`: Whether to use the group password or not ("yes" | "no").
+  - `useIdentityFile`: Whether to use the identity file or not ("yes" | "no").
 
 ## Requirements
 
-- Node.js v14 or higher (for extension development).
-- An operating system that supports integrated terminals in Visual Studio Code, like Linux. 
+- `sshpass` package installed in your system. It's used to connect directly with stored passwords.
 
-## Known Issues
+- An operating system that supports integrated terminals in Visual Studio Code, like Linux. 
 
 - The `ssh-config.json` file must exist for the extension to work correctly. If it does not exist, it will be automatically created with a basic template.
 
