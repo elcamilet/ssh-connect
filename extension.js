@@ -1,8 +1,8 @@
-import * as vscode from 'vscode';
-import * as path from 'path';
-import * as fs from 'fs';
+const vscode = require('vscode');
+const path = require('path');
+const fs = require('fs');
 
-function getFixedSSHConfigPath(context: vscode.ExtensionContext): string {
+function getFixedSSHConfigPath(context) {
     const configPath = path.join(context.globalStorageUri.fsPath, 'ssh-config.json');
     if (!fs.existsSync(configPath)) {
         const template = {
@@ -50,23 +50,22 @@ function getFixedSSHConfigPath(context: vscode.ExtensionContext): string {
     return configPath;
 }
 
-class SSHHostsProvider implements vscode.TreeDataProvider<SSHTreeItem> {
-    private _onDidChangeTreeData: vscode.EventEmitter<SSHTreeItem | undefined | void> = new vscode.EventEmitter<
-        SSHTreeItem | undefined | void
-    >();
-    readonly onDidChangeTreeData: vscode.Event<SSHTreeItem | undefined | void> = this._onDidChangeTreeData.event;
-    private groups: SSHGroupItem[] = [];
-    constructor(private configPath: string) {
+class SSHHostsProvider {
+    constructor(configPath) {
+        this.configPath = configPath;
+        this.groups = [];
+        this._onDidChangeTreeData = new vscode.EventEmitter();
+        this.onDidChangeTreeData = this._onDidChangeTreeData.event;
         this.refresh();
     }
 
-    refresh(): void {
-        const groupItems: SSHGroupItem[] = [];
+    refresh() {
+        const groupItems = [];
         try {
             const configContent = fs.readFileSync(this.configPath, 'utf-8');
             const config = JSON.parse(configContent);
             for (const group of config.groups) {
-                const hosts = group.hosts.map((host: any) => {
+                const hosts = group.hosts.map((host) => {
                     return new SSHHostItem(
                         host.shell || config.defaultShell,
                         host.host,
@@ -85,11 +84,11 @@ class SSHHostsProvider implements vscode.TreeDataProvider<SSHTreeItem> {
         this._onDidChangeTreeData.fire();
     }
 
-    getTreeItem(element: SSHTreeItem): vscode.TreeItem {
+    getTreeItem(element) {
         return element;
     }
 
-    getChildren(element?: SSHTreeItem): SSHTreeItem[] {
+    getChildren(element) {
         if (!element) {
             return this.groups;
         }
@@ -100,65 +99,69 @@ class SSHHostsProvider implements vscode.TreeDataProvider<SSHTreeItem> {
     }
 }
 
-abstract class SSHTreeItem extends vscode.TreeItem {}
+class SSHTreeItem extends vscode.TreeItem {}
 
 class SSHGroupItem extends SSHTreeItem {
-    constructor(public readonly label: string, public readonly children: SSHHostItem[]) {
+    constructor(label, children) {
         super(label, vscode.TreeItemCollapsibleState.Collapsed);
+        this.children = children;
         this.contextValue = 'group';
     }
 }
 
 class SSHHostItem extends SSHTreeItem {
-    constructor(
-        public readonly shell: string,
-        public readonly host: string,
-        public readonly name: string,
-        public readonly user: string,
-        public readonly port: string,
-        public readonly identityFile: string | undefined
-    ) {
+    constructor(shell, host, name, user, port, identityFile) {
         super(`${name} (${host})`, vscode.TreeItemCollapsibleState.None);
         this.tooltip = `HostName: ${name}\nUser: ${user}\nPort: ${port}\nIdentityFile: ${identityFile || 'None'}`;
         this.command = {
             command: 'ssh-connect.connectHost',
             title: 'Connect',
-            arguments: [host, user, port, identityFile, shell],
+            arguments: [host, user, port, identityFile, shell]
         };
         this.contextValue = 'host';
     }
 }
 
-export function activate(context: vscode.ExtensionContext) {
+function activate(context) {
     const fixedConfigPath = getFixedSSHConfigPath(context);
     const sshHostsProvider = new SSHHostsProvider(fixedConfigPath);
+    
     vscode.window.registerTreeDataProvider('sshHostsView', sshHostsProvider);
-    vscode.commands.registerCommand('workbench.action.files.save', () => {
-        sshHostsProvider.refresh();
-    });
-    const connectHostCommand = vscode.commands.registerCommand(
-        'ssh-connect.connectHost',
-        (host: string, user: string, port: string, identityFile: string | undefined, shell: string) => {
-            if (!shell) { shell = "/bin/bash"; }
-            const identityOption = identityFile ? `-i ${identityFile}` : '';
-            const sshCommand = `ssh ${identityOption} ${user}@${host} -p ${port}`;
-            const terminal = vscode.window.createTerminal({
-                name: host,
-                location: vscode.TerminalLocation.Editor,
-                isTransient: true,
-                shellPath: shell,
-                shellArgs: ['-c', sshCommand]
-            });
-            terminal.show(true);
+    vscode.workspace.onDidSaveTextDocument((document) => {
+        if (document.fileName === fixedConfigPath && fs.existsSync(fixedConfigPath)) {
+            sshHostsProvider.refresh();
         }
-    );
-    const refreshHostsCommand = vscode.commands.registerCommand('ssh-connect.refreshHosts', () => {
-        sshHostsProvider.refresh();
     });
+    
+    const connectHostCommand = vscode.commands.registerCommand('ssh-connect.connectHost', (host, user, port, identityFile, shell) => {
+        if (!shell) shell = "/bin/bash";
+        const identityOption = identityFile ? `-i ${identityFile}` : '';
+        const sshCommand = `ssh ${identityOption} ${user}@${host} -p ${port}`;
+        const terminal = vscode.window.createTerminal({
+            name: host,
+            location: vscode.TerminalLocation.Editor,
+            isTransient: true,
+            shellPath: shell,
+            shellArgs: ['-c', sshCommand]
+        });
+        terminal.show(true);
+        setTimeout(() => {
+            vscode.commands.executeCommand('workbench.action.terminal.focus');
+        }, 100);
+    });
+
     const editConfigCommand = vscode.commands.registerCommand('ssh-connect.editConfig', () => {
         vscode.workspace.openTextDocument(fixedConfigPath).then(doc => {
-            vscode.window.showTextDocument(doc);
+            setTimeout(() => {
+                vscode.window.showTextDocument(doc);
+            }, 100);
         });
     });
-    context.subscriptions.push(connectHostCommand, refreshHostsCommand, editConfigCommand);
+
+    context.subscriptions.push(connectHostCommand, editConfigCommand);
 }
+
+module.exports = {
+    activate
+};
+
