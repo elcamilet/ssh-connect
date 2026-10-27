@@ -2,7 +2,7 @@
   "name": "ssh-connect",
   "displayName": "SSH Connect",
   "description": "Manage and Connect to SSH hosts directly in VS Code",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "publisher": "elcamilet",
   "author": {
     "name": "Camilo Nevot",
@@ -18,10 +18,10 @@
     "Other"
   ],
   "activationEvents": [
-      "onView:sshHostsView",
-      "onCommand:ssh-connect.editConfig",
-      "onCommand:ssh-connect.savePassword",
-      "onCommand:ssh-connect.deletePassword"
+    "onView:sshHostsView",
+    "onCommand:ssh-connect.editConfig",
+    "onCommand:ssh-connect.savePassword",
+    "onCommand:ssh-connect.deletePassword"
   ],
   "main": "./extension.js",
   "contributes": {
@@ -79,23 +79,42 @@
           "when": "view == sshHostsView",
           "group": "navigation@3"
         }
+      ],
+      "view/item/context": [
+        {
+          "command": "ssh-connect.savePassword",
+          "when": "view == sshHostsView && viewItem == host",
+          "group": "inline@1"
+        },
+        {
+          "command": "ssh-connect.deletePassword",
+          "when": "view == sshHostsView && viewItem == host",
+          "group": "inline@2"
+        },
+        {
+          "command": "ssh-connect.savePassword",
+          "when": "view == sshHostsView && viewItem == group",
+          "group": "inline@1"
+        },
+        {
+          "command": "ssh-connect.deletePassword",
+          "when": "view == sshHostsView && viewItem == group",
+          "group": "inline@2"
+        }
       ]
     }
   },
   "scripts": {
-    "vscode:prepublish": "echo 'Prepublish script - No direct execution required'",
-    "lint": "eslint src",
-    "test": "vscode-test"
+    "vscode:prepublish": "npm run check",
+    "lint": "eslint .",
+    "test": "node --test",
+    "check": "npm run lint && npm test",
+    "package": "vsce package"
   },
   "devDependencies": {
-    "@types/node": "20.x",
-    "@types/vscode": "^1.96.0",
-    "eslint": "^9.16.0",
-    "vscode": "^1.1.37"
-  },
-  "dependencies": {
-    "fs": "^0.0.1-security",
-    "keytar": "^7.9.0",
-    "ssh-config": "^4.3.0"
+    "@eslint/js": "^10.0.1",
+    "@vscode/vsce": "^4.0.0",
+    "eslint": "^10.13.0",
+    "globals": "^17.13.0"
   }
 }
