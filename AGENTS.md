@@ -7,7 +7,7 @@
 - `lib/ssh.js` builds SSH argument arrays and terminal invocations. It never builds a shell command string.
 - `lib/passwords.js` wraps VS Code `SecretStorage` (`context.secrets`).
 - `lib/retry.js` contains the retry policy.
-- Unit tests live in `test/unit/` and use Node's built-in test runner. There are no integration tests, no CI and no live SSH tests.
+- Unit tests live in `test/unit/` and use Node's built-in test runner. There are no integration tests, no CI and no automated live SSH tests.
 - There is no build step. `package.json` `main` points directly at `extension.js`.
 
 ## Commands
@@ -21,7 +21,7 @@ npm run package      # vsce package; prepublish runs check
 ```
 
 - F5 with "Run Extension" (`.vscode/launch.json`) opens an Extension Development Host.
-- Manual verification is limited to activation/UI. Do not claim that SSH, `sshpass`, Windows or macOS were validated live.
+- Manual verification is limited to activation/UI, plus a one-off Windows identity-file connection in 0.2.0. Do not claim that `sshpass`, stored passwords or macOS were validated live.
 - VSIX artifacts are gitignored.
 
 ## Runtime architecture
@@ -45,8 +45,9 @@ npm run package      # vsce package; prepublish runs check
 ## Support and quality constraints
 
 - Official support: Linux/WSL x86-64 and ARM64.
-- Windows and macOS: best-effort, not validated live.
-- 0.2.0 has unit tests only; no CI, integration tests, Docker SSH or real connection tests.
+- Windows: best-effort. Identity-file authentication was manually verified in 0.2.0; stored passwords are not injected.
+- macOS: best-effort, not validated live.
+- 0.2.0 has unit tests only; no CI, integration tests or Docker SSH. Live verification is limited to the manual Windows identity-file test.
 - README/CHANGELOG must state these limitations honestly.
 - Keep VS Code API usage compatible with `engines.vscode: ^1.96.0`.
 - `npm audit` reports a high-severity advisory inside the `@vscode/vsce` dev toolchain (Azure auth). Runtime dependencies are clean (`npm audit --omit=dev`).
