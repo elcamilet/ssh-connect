@@ -3,11 +3,22 @@ const path = require('path');
 const fs = require('fs');
 const keytar = require('keytar');
 
+function getDefaultShell() {
+    const platform = process.platform;
+    if (platform === 'win32') {
+        return process.env.COMSPEC || 'cmd.exe';
+    } else if (platform === 'darwin') {
+        return '/bin/bash';
+    } else {
+        return '/bin/bash';
+    }
+}
+
 function getFixedSSHConfigPath(context) {
     const configPath = path.join(context.globalStorageUri.fsPath, 'ssh-config.json');
     if (!fs.existsSync(configPath)) {
         const template = {
-            defaultShell: "/bin/bash",
+            // Se elimina "defaultShell" del template
             groups: [
                 {
                     name: "Development",
@@ -78,7 +89,7 @@ class SSHHostsProvider {
             for (const group of config.groups) {
                 const hosts = group.hosts.map((host) => {
                     return new SSHHostItem(
-                        host.shell || config.defaultShell || "/bin/bash",
+                        host.shell || getDefaultShell(),
                         host.host,
                         host.name,
                         host.user || group.defaultUser || "root",
@@ -160,7 +171,7 @@ function activate(context) {
         }
     });
     const connectHostCommand = vscode.commands.registerCommand('ssh-connect.connectHost', async (host, user, port, identityFile, shell, group, useGroupPassword, useIdentityFile) => {
-        if (!shell) shell = "/bin/bash";
+        if (!shell) shell = getDefaultShell();
         let identityOption = identityFile ? `-i ${identityFile}` : '';
         if (useIdentityFile === "no") {
             identityOption = '';
@@ -171,10 +182,16 @@ function activate(context) {
             if (!password && useGroupPassword === "yes") {
                 password = await getPassword('SSHConnect', group);
             }
-            if (password) {
+            const platform = process.platform;
+            if ((platform === 'linux' || platform === 'darwin') && password) {
+                // En Linux y macOS se usa sshpass (si está instalado)
                 sshCommand = `sshpass -p '${password}' ssh ${user}@${host} -p ${port}`;
             } else {
+                // En Windows (o sin contraseña) se usa la conexión ssh normal
                 sshCommand = `ssh ${identityOption} ${user}@${host} -p ${port}`;
+                if (platform === 'win32' && password) {
+                    vscode.window.showWarningMessage("Password-based authentication using sshpass is not supported on Windows. Please set up key-based authentication or use another method.");
+                }
             }
             const terminal = vscode.window.createTerminal({
                 name: host,
@@ -224,6 +241,7 @@ function activate(context) {
             }, 100);
         });
     });
+    
     context.subscriptions.push(connectHostCommand, deletePasswordCommand, savePasswordCommand, editConfigCommand);
 }
 
