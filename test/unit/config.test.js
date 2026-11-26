@@ -5,6 +5,7 @@ const assert = require('node:assert/strict');
 const {
     ConfigError,
     LEGACY_SHELL_MESSAGE,
+    createDefaultConfig,
     parseConfig,
     formatTerminalName,
     resolveConnection
@@ -168,4 +169,198 @@ test('parseConfig rejects invalid yes/no values', () => {
     const config = baseConfig();
     config.groups[0].hosts[0].useIdentityFile = 'sometimes';
     assert.throws(() => parseConfig(JSON.stringify(config)), ConfigError);
+});
+
+test('parseConfig accepts a WSL host without host', () => {
+    const config = parse({
+        groups: [
+            {
+                name: 'Local',
+                hosts: [{ type: 'wsl', name: 'WSL' }]
+            }
+        ]
+    });
+    assert.equal(config.groups[0].hosts[0].type, 'wsl');
+});
+
+test('parseConfig rejects an unknown host type', () => {
+    const config = baseConfig();
+    config.groups[0].hosts[0].type = 'container';
+    assert.throws(() => parseConfig(JSON.stringify(config)), ConfigError);
+});
+
+test('parseConfig rejects non-string WSL and start command fields', () => {
+    const config = baseConfig();
+    config.groups[0].hosts[0].startCommand = ['opencode'];
+    assert.throws(() => parseConfig(JSON.stringify(config)), ConfigError);
+
+    const wslConfig = {
+        groups: [
+            {
+                name: 'Local',
+                hosts: [{ type: 'wsl', name: 'WSL', startingDirectory: 42 }]
+            }
+        ]
+    };
+    assert.throws(() => parseConfig(JSON.stringify(wslConfig)), ConfigError);
+});
+
+test('parseConfig warns about fields that do not apply to WSL', () => {
+    const result = parseConfig(
+        JSON.stringify({
+            groups: [
+                {
+                    name: 'Local',
+                    hosts: [
+                        {
+                            type: 'wsl',
+                            name: 'WSL',
+                            host: 'ignored',
+                            port: 22,
+                            startingDirectory: '/home/dev'
+                        }
+                    ]
+                }
+            ]
+        })
+    );
+    assert.ok(result.warnings.some((warning) => warning.includes('SSH-only settings')));
+});
+
+test('parseConfig warns about WSL-only fields on an SSH host', () => {
+    const config = baseConfig();
+    config.groups[0].hosts[0].startingDirectory = '/tmp';
+    const result = parseConfig(JSON.stringify(config));
+    assert.ok(result.warnings.some((warning) => warning.includes('WSL-only settings')));
+});
+
+test('parseConfig warns about a group-level startCommand', () => {
+    const config = baseConfig();
+    config.groups[0].startCommand = 'opencode';
+    const result = parseConfig(JSON.stringify(config));
+    assert.ok(result.warnings.some((warning) => warning.includes('host entries')));
+});
+
+test('resolveConnection returns a WSL connection with defaults', () => {
+    const config = parse({
+        groups: [
+            {
+                name: 'Local',
+                defaultUser: 'ssh-user',
+                defaultPort: 2222,
+                hosts: [{ type: 'wsl', name: 'WSL' }]
+            }
+        ]
+    });
+    const connection = resolveConnection(config.groups[0], config.groups[0].hosts[0]);
+    assert.deepEqual(connection, {
+        kind: 'wsl',
+        name: 'WSL',
+        distribution: '',
+        user: '',
+        startingDirectory: '',
+        startCommand: '',
+        terminalName: 'WSL',
+        groupName: 'Local'
+    });
+});
+
+test('resolveConnection builds a WSL connection with explicit fields', () => {
+    const config = parse({
+        groups: [
+            {
+                name: 'Local',
+                hosts: [
+                    {
+                        type: 'wsl',
+                        name: 'Ubuntu',
+                        distribution: 'Ubuntu-22.04',
+                        user: 'camilo',
+                        startingDirectory: '/home/camilo/app',
+                        startCommand: 'opencode'
+                    }
+                ]
+            }
+        ]
+    });
+    const connection = resolveConnection(config.groups[0], config.groups[0].hosts[0]);
+    assert.deepEqual(connection, {
+        kind: 'wsl',
+        name: 'Ubuntu',
+        distribution: 'Ubuntu-22.04',
+        user: 'camilo',
+        startingDirectory: '/home/camilo/app',
+        startCommand: 'opencode',
+        terminalName: 'Ubuntu',
+        groupName: 'Local'
+    });
+});
+
+test('resolveConnection ignores group terminalName for WSL', () => {
+    const config = parse({
+        groups: [
+            {
+                name: 'Local',
+                terminalName: '{user}@{host}',
+                hosts: [{ type: 'wsl', name: 'WSL' }]
+            }
+        ]
+    });
+    const connection = resolveConnection(config.groups[0], config.groups[0].hosts[0]);
+    assert.equal(connection.terminalName, 'WSL');
+});
+
+test('resolveConnection expands {distribution} for WSL', () => {
+    const config = parse({
+        groups: [
+            {
+                name: 'Local',
+                hosts: [
+                    {
+                        type: 'wsl',
+                        name: 'Ubuntu',
+                        distribution: 'Ubuntu-22.04',
+                        terminalName: '{name} ({distribution})'
+                    }
+                ]
+            }
+        ]
+    });
+    const connection = resolveConnection(config.groups[0], config.groups[0].hosts[0]);
+    assert.equal(connection.terminalName, 'Ubuntu (Ubuntu-22.04)');
+});
+
+test('resolveConnection keeps startCommand for SSH', () => {
+    const config = baseConfig();
+    config.groups[0].hosts[0].startCommand = 'cd /srv/app && exec bash -l';
+    const connection = resolveConnection(config.groups[0], config.groups[0].hosts[0]);
+    assert.equal(connection.kind, 'ssh');
+    assert.equal(connection.startCommand, 'cd /srv/app && exec bash -l');
+});
+
+test('formatTerminalName supports the distribution placeholder', () => {
+    assert.equal(
+        formatTerminalName('{name} ({distribution})', {
+            name: 'Ubuntu',
+            distribution: 'Ubuntu-22.04'
+        }),
+        'Ubuntu (Ubuntu-22.04)'
+    );
+});
+
+test('createDefaultConfig adds a WSL example only on Windows', () => {
+    const windows = createDefaultConfig('win32');
+    assert.equal(windows.groups[0].name, 'Local');
+    assert.equal(windows.groups[0].hosts[0].type, 'wsl');
+    assert.equal(windows.groups[0].hosts[0].name, 'WSL');
+    assert.deepEqual(parseConfig(JSON.stringify(windows)).warnings, []);
+
+    const linux = createDefaultConfig('linux');
+    assert.equal(
+        linux.groups.some((group) =>
+            group.hosts.some((host) => host.type === 'wsl')
+        ),
+        false
+    );
+    assert.deepEqual(parseConfig(JSON.stringify(linux)).warnings, []);
 });

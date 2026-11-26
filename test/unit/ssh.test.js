@@ -2,7 +2,7 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { buildSshArgs, buildTerminalInvocation } = require('../../lib/ssh');
+const { buildSshArgs, buildWslArgs, buildTerminalInvocation } = require('../../lib/ssh');
 
 function connection(overrides = {}) {
     return {
@@ -116,4 +116,108 @@ test('buildTerminalInvocation does not warn on Windows without a password', () =
         sshpassAvailable: false
     });
     assert.deepEqual(invocation.warnings, []);
+});
+
+test('buildSshArgs adds a TTY and the start command after the destination', () => {
+    const args = buildSshArgs(connection({ startCommand: 'tmux attach' }));
+    const destination = args.indexOf('deploy@example.com');
+    assert.equal(args[destination - 1], '-t');
+    assert.equal(args[destination + 1], 'tmux attach');
+});
+
+test('buildSshArgs does not add a TTY without a start command', () => {
+    assert.equal(buildSshArgs(connection()).includes('-t'), false);
+});
+
+test('buildWslArgs builds distribution, user, directory and start command', () => {
+    const args = buildWslArgs({
+        kind: 'wsl',
+        distribution: 'Ubuntu-22.04',
+        user: 'camilo',
+        startingDirectory: '/home/camilo/app',
+        startCommand: 'opencode'
+    });
+    assert.deepEqual(args, [
+        '--distribution',
+        'Ubuntu-22.04',
+        '--user',
+        'camilo',
+        '--cd',
+        '/home/camilo/app',
+        '--exec',
+        'bash',
+        '-lic',
+        'opencode'
+    ]);
+});
+
+test('buildWslArgs is empty for a default WSL session', () => {
+    assert.deepEqual(buildWslArgs({ kind: 'wsl' }), []);
+});
+
+test('buildTerminalInvocation uses wsl.exe for WSL connections', () => {
+    const invocation = buildTerminalInvocation(
+        {
+            kind: 'wsl',
+            distribution: 'Ubuntu',
+            user: 'camilo',
+            startingDirectory: '~'
+        },
+        'win32',
+        { wslPath: 'C:\\Windows\\System32\\wsl.exe' }
+    );
+    assert.equal(invocation.command, 'C:\\Windows\\System32\\wsl.exe');
+    assert.deepEqual(invocation.args, [
+        '--distribution',
+        'Ubuntu',
+        '--user',
+        'camilo',
+        '--cd',
+        '~'
+    ]);
+    assert.deepEqual(invocation.env, {});
+    assert.deepEqual(invocation.warnings, []);
+    assert.deepEqual(invocation.logArgs, invocation.args);
+});
+
+test('buildTerminalInvocation ignores passwords for WSL connections', () => {
+    const invocation = buildTerminalInvocation(
+        { kind: 'wsl', password: 'secret', startCommand: 'opencode' },
+        'win32',
+        { wslPath: 'wsl.exe' }
+    );
+    assert.equal(invocation.command, 'wsl.exe');
+    assert.equal(invocation.env.SSHPASS, undefined);
+    assert.equal(invocation.args.includes('secret'), false);
+    assert.equal(invocation.args.includes('opencode'), true);
+    assert.equal(invocation.logArgs.includes('opencode'), false);
+    assert.equal(invocation.logArgs[invocation.logArgs.length - 1], '<startCommand>');
+});
+
+test('buildTerminalInvocation redacts the start command in logArgs', () => {
+    const invocation = buildTerminalInvocation(
+        connection({ startCommand: 'opencode' }),
+        'linux',
+        { sshPath: '/usr/bin/ssh' }
+    );
+    assert.equal(invocation.args.includes('opencode'), true);
+    assert.equal(invocation.logArgs.includes('opencode'), false);
+    assert.equal(invocation.logArgs[invocation.logArgs.length - 1], '<startCommand>');
+});
+
+test('buildTerminalInvocation keeps the start command with sshpass', () => {
+    const invocation = buildTerminalInvocation(
+        connection({ startCommand: 'tmux attach', password: 'secret' }),
+        'linux',
+        {
+            sshPath: '/usr/bin/ssh',
+            sshpassAvailable: true,
+            sshpassPath: '/usr/bin/sshpass'
+        }
+    );
+    assert.equal(invocation.command, '/usr/bin/sshpass');
+    const destination = invocation.args.indexOf('deploy@example.com');
+    assert.equal(invocation.args[destination + 1], 'tmux attach');
+    assert.equal(invocation.args.includes('secret'), false);
+    assert.equal(invocation.logArgs[invocation.logArgs.length - 1], '<startCommand>');
 });

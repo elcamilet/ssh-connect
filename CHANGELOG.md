@@ -2,6 +2,28 @@
 
 All notable changes to the "ssh-connect" extension will be documented in this file.
 
+## [0.3.0] - 2026-11-26
+
+### Added
+
+- WSL entries on Windows via `"type": "wsl"` in `ssh-config.json`.
+- Optional `distribution`, `user` and `startingDirectory` for WSL entries.
+- `startCommand` for SSH and WSL hosts. SSH allocates a TTY with `-t`; WSL runs the command with `bash -lic`.
+- The generated configuration on Windows includes a `Local` group with a minimal WSL example.
+- README documentation for WSL entries, `startCommand` and the new host fields.
+
+### Changed
+
+- WSL tree items use a terminal icon and their own label and description.
+- Password group actions are hidden for groups that contain only WSL hosts.
+- The extension description now mentions local WSL distributions.
+
+### Notes
+
+- WSL entries are Windows-only and best-effort. They have unit tests but no live WSL validation.
+- `startCommand` in WSL requires `bash` inside the distribution.
+- `startCommand` is redacted from the **SSH Connect** output channel.
+
 ## [0.2.0] - 2026-10-27
 
 ### Added
