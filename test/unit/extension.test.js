@@ -7,7 +7,7 @@ const os = require('os');
 const path = require('path');
 const Module = require('module');
 
-function makeVscode(remoteName, state) {
+function makeVscode(remoteName, state, remoteAuthority) {
     class EventEmitter {
         constructor() {
             this.listeners = [];
@@ -40,7 +40,7 @@ function makeVscode(remoteName, state) {
     }
 
     return {
-        env: { remoteName },
+        env: { remoteName, remoteAuthority },
         EventEmitter,
         TreeItem,
         ThemeIcon,
@@ -138,8 +138,8 @@ function makeState() {
     };
 }
 
-function loadExtension(remoteName, state, storageDir, secrets) {
-    const vscode = makeVscode(remoteName, state);
+function loadExtension(remoteName, state, storageDir, secrets, remoteAuthority) {
+    const vscode = makeVscode(remoteName, state, remoteAuthority);
     const originalLoad = Module._load;
     Module._load = function (request, parent, isMain) {
         if (request === 'vscode') {
@@ -192,6 +192,20 @@ function localConnection(overrides = {}) {
     };
 }
 
+function wslConnection(overrides = {}) {
+    return {
+        kind: 'wsl',
+        name: 'WSL',
+        distribution: 'Ubuntu-22.04',
+        user: os.userInfo().username,
+        startingDirectory: '/home/dev',
+        startCommand: '',
+        terminalName: 'WSL',
+        groupName: 'Local',
+        ...overrides
+    };
+}
+
 test('local terminal extension flow', async () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), 'ssh-connect-test-'));
     const remoteDir = path.join(root, 'remote');
@@ -215,6 +229,60 @@ test('local terminal extension flow', async () => {
         assert.equal(remoteState.terminals.length, 0);
         assert.match(remoteState.errors[0], /only available in local windows/);
         assert.equal(remoteSecrets.gets, 0);
+
+        extension.deactivate();
+
+        const wslDir = path.join(root, 'wsl');
+        const wslSecrets = makeSecrets();
+        const wslState = makeState();
+        extension = loadExtension(
+            'wsl',
+            wslState,
+            wslDir,
+            wslSecrets,
+            'wsl+Ubuntu-22.04'
+        );
+
+        const wslConfig = JSON.parse(
+            fs.readFileSync(path.join(wslDir, 'ssh-config.json'), 'utf8')
+        );
+        assert.equal(
+            wslConfig.groups.some((group) => group.name === 'Local'),
+            false
+        );
+
+        await wslState.commands.get('ssh-connect.connectHost')(
+            wslConnection({ startCommand: 'opencode' })
+        );
+        const wslOptions = wslState.terminals[0];
+        assert.equal(wslOptions.shellPath, 'bash');
+        assert.deepEqual(wslOptions.shellArgs, ['-lic', 'opencode']);
+        assert.equal(wslOptions.cwd, '/home/dev');
+        assert.equal(wslState.errors.length, 0);
+        assert.equal(wslSecrets.gets, 0);
+        const wslLog = wslState.outputLines.find((line) =>
+            line.includes('<startCommand>')
+        );
+        assert.ok(wslLog);
+        assert.equal(wslLog.includes('opencode'), false);
+
+        await wslState.commands.get('ssh-connect.connectHost')(
+            wslConnection({ startCommand: '' })
+        );
+        const defaultWslOptions = wslState.terminals[1];
+        assert.equal(defaultWslOptions.shellPath, undefined);
+        assert.equal(defaultWslOptions.shellArgs, undefined);
+        assert.equal(defaultWslOptions.cwd, '/home/dev');
+
+        await wslState.commands.get('ssh-connect.connectHost')(
+            wslConnection({
+                distribution: 'Ubuntu-24.04',
+                user: 'someone-else',
+                startCommand: ''
+            })
+        );
+        assert.equal(wslState.warnings.length, 2);
+        assert.equal(wslState.terminals.length, 3);
 
         extension.deactivate();
 

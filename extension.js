@@ -3,10 +3,18 @@
 const vscode = require('vscode');
 const path = require('path');
 const fs = require('fs');
+const os = require('os');
 const { execFileSync } = require('child_process');
 const { createDefaultConfig, parseConfig, resolveConnection } = require('./lib/config');
 const { buildTerminalInvocation } = require('./lib/ssh');
-const { buildLocalInvocation, canOpenLocal } = require('./lib/local');
+const {
+    buildLocalInvocation,
+    buildWslRemoteInvocation,
+    canOpenLocal,
+    currentWslDistro,
+    isWslRemote,
+    wslRemoteWarnings
+} = require('./lib/local');
 const { PasswordStore } = require('./lib/passwords');
 const { shouldRetry, retryDelayMs } = require('./lib/retry');
 
@@ -482,9 +490,40 @@ function activate(context) {
         }
 
         if (connection.kind === 'wsl') {
+            if (process.platform !== 'win32' && isWslRemote(vscode.env.remoteName)) {
+                const currentDistro = currentWslDistro(vscode.env.remoteAuthority);
+                const currentUser = os.userInfo().username;
+                for (const warning of wslRemoteWarnings(
+                    connection,
+                    currentDistro,
+                    currentUser
+                )) {
+                    vscode.window.showWarningMessage(warning);
+                }
+
+                const invocation = buildWslRemoteInvocation(connection);
+                output.appendLine(
+                    `[connect] wsl remote ${currentDistro || 'current'} user ${currentUser}`
+                );
+                output.appendLine(
+                    `[command] ${[invocation.logCommand, ...invocation.logArgs].join(' ')}`
+                );
+
+                const terminal = openEditorTerminal({
+                    name: connection.terminalName,
+                    shellPath: invocation.shellPath,
+                    shellArgs: invocation.shellArgs,
+                    cwd: connection.startingDirectory || undefined
+                });
+                activeTerminals.set(terminal, { connection, attempt, remote: true });
+                return;
+            }
+
             if (!wslAvailable) {
                 vscode.window.showErrorMessage(
-                    'SSH Connect: WSL is only available on Windows and requires wsl.exe.'
+                    process.platform === 'win32'
+                        ? 'SSH Connect: wsl.exe was not found. Install WSL or enable the Windows Subsystem for Linux feature.'
+                        : 'SSH Connect: WSL entries are only available from a local Windows window or a Remote-WSL window.'
                 );
                 return;
             }
@@ -579,8 +618,11 @@ function activate(context) {
         }
 
         if (state.connection.kind === 'wsl') {
+            const target = state.remote
+                ? 'remote'
+                : state.connection.distribution || 'default';
             output.appendLine(
-                `[close] wsl ${state.connection.distribution || 'default'} exit ${
+                `[close] wsl ${target} exit ${
                     exitCode === undefined ? 'unknown' : exitCode
                 }`
             );
