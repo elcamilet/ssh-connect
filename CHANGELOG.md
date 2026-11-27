@@ -2,6 +2,28 @@
 
 All notable changes to the "ssh-connect" extension will be documented in this file.
 
+## [0.4.0] - 2026-11-27
+
+### Added
+
+- Local terminal entries on Windows, Linux and macOS via `"type": "local"` in `ssh-config.json`.
+- Optional `startingDirectory`, `shell` and `shellArgs` for local entries.
+- `startCommand` for local entries when `shell` and a non-empty `shellArgs` are set.
+- The generated configuration in a local window includes a `Local` group with a `Local terminal` example. Windows also keeps the `WSL` example.
+- README documentation for local terminals and the shell command flag.
+
+### Changed
+
+- `host.shell` is now a local-only field. The legacy custom-shell warning applies to `defaultShell`, root-level `shell` and `group.shell`.
+- Local entries use a desktop icon, their own tree description and no password or retry actions.
+- The extension description now mentions local terminals.
+
+### Notes
+
+- Local entries work only in local windows. Remote-SSH, Remote-WSL and container windows show an error.
+- The last local `shellArgs` value must be the flag that runs the start command; the extension does not infer it.
+- Local terminal creation is unit-tested; the VS Code terminal UI was not validated live.
+
 ## [0.3.0] - 2026-11-26
 
 ### Added

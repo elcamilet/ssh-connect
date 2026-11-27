@@ -1,8 +1,8 @@
 {
   "name": "ssh-connect",
   "displayName": "SSH Connect",
-  "description": "Manage and connect to SSH hosts and local WSL distributions directly in VS Code",
-  "version": "0.3.0",
+  "description": "Manage and connect to SSH hosts, local WSL distributions and local terminals directly in VS Code",
+  "version": "0.4.0",
   "publisher": "elcamilet",
   "author": {
     "name": "Camilo Nevot",

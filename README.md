@@ -1,11 +1,12 @@
 # SSH Connect by elCamilet
 
-**SSH Connect** is a Visual Studio Code extension that lets you manage and connect to SSH servers and local WSL distributions directly from the editor. It provides a hierarchical view of groups and hosts, quick connections in an editor terminal, and optional password storage using VS Code's SecretStorage.
+**SSH Connect** is a Visual Studio Code extension that lets you manage and connect to SSH servers, local WSL distributions and local terminals directly from the editor. It provides a hierarchical view of groups and hosts, quick connections in an editor terminal, and optional password storage using VS Code's SecretStorage.
 
 ## Features
 
 - **Hierarchical SSH hosts view** grouped by category.
 - **Quick connections** from the tree, using the system OpenSSH client.
+- **Local terminals** on Windows, Linux and macOS, without an SSH server.
 - **Local WSL terminals** on Windows, without an SSH server.
 - **Configuration file** stored in VS Code global storage.
 - **Saved passwords** in VS Code SecretStorage (no native keychain module).
@@ -18,10 +19,11 @@
 ## Requirements
 
 - VS Code `1.96.0` or newer.
-- An OpenSSH client (`ssh`) available in `PATH` for SSH hosts. WSL entries use `wsl.exe` instead.
+- An OpenSSH client (`ssh`) available in `PATH` for SSH hosts. WSL entries use `wsl.exe`; local entries use the VS Code terminal profile.
 - `sshpass` is optional and only used for saved passwords on Linux/macOS. If it is missing, SSH Connect opens a normal `ssh` session and asks for the password in the terminal.
 - WSL entries require Windows 10/11 with WSL installed and `wsl.exe` available.
-- Windows and macOS support is **best-effort** in 0.3.0.
+- Local entries require a local VS Code window. Remote-SSH, Remote-WSL and container windows reject them.
+- Windows and macOS support is **best-effort** in 0.4.0.
 - Linux and WSL x86-64 and ARM64 are the officially supported platforms.
 
 `sshpass` is not used on Windows. Windows connections use an SSH key/agent or the interactive OpenSSH password prompt.
@@ -37,8 +39,8 @@ code --install-extension elcamilet.ssh-connect
 ## Usage
 
 1. Open the **SSH Connect** view in the activity bar.
-2. Click a host to open an SSH connection in an editor-area terminal.
-3. On Windows, click a WSL entry to open a terminal inside the local distribution.
+2. Click an SSH host to open an SSH connection in an editor-area terminal.
+3. In a local window, click a local entry to open a terminal with the local shell, or a WSL entry to open the local distribution.
 4. Use **Edit configuration file** from the view title or the command palette to edit `ssh-config.json`.
 5. Use **Save password for group or host** from the view title, the command palette, or the context menu of a host/group.
 6. Use **Delete saved password for group or host** from the same locations.
@@ -65,7 +67,7 @@ On stable VS Code for Linux, this is usually:
 ~/.config/Code/User/globalStorage/elcamilet.ssh-connect/ssh-config.json
 ```
 
-The file is created automatically with a small example if it does not exist. On Windows, the generated file also includes a `Local` group with a minimal WSL entry.
+The file is created automatically with a small example if it does not exist. In a local window, the generated file includes a `Local` group with a `Local terminal` entry. On Windows it also includes a `WSL` entry. A remote window does not add the `Local` group.
 
 ### Example
 
@@ -75,6 +77,10 @@ The file is created automatically with a small example if it does not exist. On 
     {
       "name": "Local",
       "hosts": [
+        {
+          "type": "local",
+          "name": "Local terminal"
+        },
         {
           "type": "wsl",
           "name": "WSL"
@@ -139,25 +145,27 @@ The file is created automatically with a small example if it does not exist. On 
 | `retry` | Optional retry configuration, see below. |
 | `hosts` | Array of host objects. |
 
-Group defaults apply to SSH hosts only. WSL entries use their own `user` and `startingDirectory`.
+Group defaults apply to SSH hosts only. WSL and local entries use their own fields.
 
 ### Host fields
 
 | Field | Description |
 |---|---|
-| `type` | `"ssh"` or `"wsl"`. Optional; defaults to `"ssh"`. |
-| `host` | Hostname or IP address. Required for SSH hosts. Ignored for WSL hosts. |
+| `type` | `"ssh"`, `"wsl"` or `"local"`. Optional; defaults to `"ssh"`. |
+| `host` | Hostname or IP address. Required for SSH hosts. Ignored for WSL and local hosts. |
 | `name` | Visible name. Required. |
-| `user` | SSH user. For WSL hosts, the Linux user. |
+| `user` | SSH user. For WSL hosts, the Linux user. Ignored for local hosts. |
 | `port` | SSH port. Overrides `defaultPort`. |
 | `identityFile` | Identity file. Overrides `defaultIdentityFile`. |
 | `group` | Optional group name used for the SSH group password lookup. |
 | `useGroupPassword` | `"yes"` or `"no"`. Defaults to `"yes"`. |
 | `useIdentityFile` | `"yes"` or `"no"`. Defaults to `"yes"`. |
-| `terminalName` | Terminal label. Supports `{name}`, `{user}`, `{host}`, `{port}` and `{distribution}`. Defaults to `{user}@{host}`; WSL defaults to `{name}`. |
+| `terminalName` | Terminal label. Supports `{name}`, `{user}`, `{host}`, `{port}` and `{distribution}`. Defaults to `{user}@{host}`; WSL and local default to `{name}`. |
 | `distribution` | WSL only. Distribution name. Defaults to the default WSL distribution. |
-| `startingDirectory` | WSL only. Absolute Linux path or `~`. Defaults to the Linux home directory. |
-| `startCommand` | SSH and WSL. Command to run after connecting. |
+| `startingDirectory` | WSL or local. WSL: absolute Linux path or `~`. Local: absolute path. Defaults to the Linux home (WSL) or the VS Code terminal default (local). |
+| `shell` | Local only. Explicit shell executable. Empty uses the VS Code default profile. |
+| `shellArgs` | Local only. Array of strings passed to `shell`. Requires `shell`; required when `startCommand` is set. |
+| `startCommand` | SSH, WSL or local. Command to run after connecting. Local requires `shell` and a non-empty `shellArgs`. |
 | `forwardAgent` | `"yes"` or `"no"`. Overrides the group setting. |
 | `connectTimeout` | Overrides the group value. |
 | `serverAliveInterval` | Overrides the group value. |
@@ -200,12 +208,79 @@ Optional fields:
 
 WSL entries are only available in a local Windows VS Code window. In a Remote-WSL window the editor is already inside WSL; on Linux and macOS the entry shows an error.
 
+### Local terminals
+
+On any platform, a host entry with `"type": "local"` opens a terminal with the VS Code default profile:
+
+```json
+{
+  "type": "local",
+  "name": "Local terminal"
+}
+```
+
+This uses the default profile: PowerShell on Windows and `$SHELL` on Linux/macOS. It opens in the VS Code default terminal directory, usually the workspace root.
+
+Optional fields:
+
+```json
+{
+  "type": "local",
+  "name": "PowerShell",
+  "startingDirectory": "C:\\projects\\app",
+  "shell": "powershell.exe",
+  "shellArgs": ["-NoExit", "-Command"],
+  "startCommand": "opencode"
+}
+```
+
+- `startingDirectory`: absolute path for the current platform. `~` is not expanded.
+- `shell`: explicit shell. Without it, the default profile is used.
+- `shellArgs`: array of strings. The last value must be the flag that runs the next argument: `-Command` for PowerShell, `/K` or `/C` for cmd, `-c` or `-lic` for bash.
+- `startCommand`: requires `shell` and a non-empty `shellArgs`. The extension appends it as the last argument.
+- Local entries do not use passwords, group passwords or retry.
+
+Examples for each shell:
+
+```json
+{
+  "type": "local",
+  "name": "PowerShell",
+  "shell": "powershell.exe",
+  "shellArgs": ["-NoExit", "-Command"],
+  "startCommand": "opencode"
+}
+```
+
+```json
+{
+  "type": "local",
+  "name": "cmd",
+  "shell": "cmd.exe",
+  "shellArgs": ["/K"],
+  "startCommand": "opencode"
+}
+```
+
+```json
+{
+  "type": "local",
+  "name": "bash",
+  "shell": "bash",
+  "shellArgs": ["-lic"],
+  "startCommand": "opencode"
+}
+```
+
+Local entries only work in a local Windows, Linux or macOS VS Code window. In Remote-SSH, Remote-WSL or container windows, the entry shows an error. This avoids the internal `workbench.action.terminal.newLocal` command, which has a documented remote-to-local execution risk (CVE-2024-49049).
+
 ### Start commands
 
-`startCommand` is available for SSH and WSL hosts. It runs after the connection is established. It is configured per host; a group-level `startCommand` is ignored with a warning.
+`startCommand` is available for SSH, WSL and local hosts. It runs after the connection is established. It is configured per host; a group-level `startCommand` is ignored with a warning.
 
 - SSH: `ssh -t user@host "startCommand"`. The command runs in the remote shell with a TTY.
 - WSL: `wsl.exe ... --exec bash -lic "startCommand"`.
+- Local: `shell`, then `shellArgs`, then the command. Local hosts require both `shell` and a non-empty `shellArgs`.
 
 Examples:
 
@@ -225,6 +300,16 @@ Examples:
 }
 ```
 
+```json
+{
+  "type": "local",
+  "name": "PowerShell",
+  "shell": "powershell.exe",
+  "shellArgs": ["-NoExit", "-Command"],
+  "startCommand": "opencode"
+}
+```
+
 SSH Connect forwards the string as-is. It does not quote or expand it; the remote shell (SSH) or `bash` (WSL) interprets it. It is redacted from the output channel.
 
 ### Retry configuration
@@ -239,7 +324,7 @@ SSH Connect forwards the string as-is. It does not quote or expand it; the remot
 
 Retries are opt-in. SSH Connect only retries exit code `255` (connection failure), up to `maxAttempts` total attempts, with a delay between attempts. Closing the terminal manually does not trigger a retry. Attempts and exit codes are logged in the **SSH Connect** output channel.
 
-With `startCommand`, exit code `255` can also come from the remote command instead of the SSH connection. Retry remains opt-in.
+With `startCommand`, exit code `255` can also come from the remote command instead of the SSH connection. Retry remains opt-in. Local and WSL entries never retry.
 
 The terminal scrollback of a closed terminal is not preserved.
 
@@ -252,7 +337,7 @@ Passwords are stored in VS Code SecretStorage, never in `ssh-config.json`.
 - The host password is tried first, then the group password when `useGroupPassword` is not `"no"`.
 - Passwords saved by version 0.1.x using `keytar` are not migrated. Re-enter them once after upgrading.
 
-On Windows, saved passwords are not injected into the SSH command. Use an SSH key/agent or type the password at the OpenSSH prompt. WSL entries do not use saved passwords.
+On Windows, saved passwords are not injected into the SSH command. Use an SSH key/agent or type the password at the OpenSSH prompt. WSL and local entries do not use saved passwords.
 
 `sshpass` passes the password through the `SSHPASS` environment variable instead of the command line. Prefer SSH keys or an agent when possible.
 
@@ -270,7 +355,7 @@ Check the **SSH Connect** output channel and the error notification. If `ssh-con
 
 ### Custom shell settings no longer work
 
-Custom shells were removed in 0.2.0. `defaultShell`, `host.shell` and `group.shell` are ignored with a one-time warning. SSH Connect runs `ssh`, `sshpass` or `wsl.exe` directly.
+Custom shells for SSH hosts were removed in 0.2.0. `defaultShell`, root-level `shell` and `group.shell` are ignored with a one-time warning. `host.shell` is supported only for local entries; SSH and WSL entries ignore it.
 
 ### Saved passwords are not used on Linux/WSL
 
@@ -298,13 +383,23 @@ Install WSL or enable the Windows Subsystem for Linux optional feature, then ver
 
 The WSL `startCommand` runs with `bash -lic` inside the distribution. Install `bash` in the distribution or use a command that is available in its login shell.
 
-## Limitations in 0.3.0
+### Local: the entry shows an error in a remote window
 
-- Unit tests only; no CI and no real SSH or WSL connection tests were run for this release.
+Local entries only work in a local VS Code window. Open the folder in a local window, or use the SSH or WSL entries in the remote window.
+
+### Local: the shell or start command fails
+
+The local entry uses the VS Code default profile unless `shell` is set. If `startCommand` is set, `shell` and `shellArgs` are required, and the last `shellArgs` value must be the flag that runs the command (`-Command`, `/K`, `-c` or `-lic`). The extension does not infer this flag.
+
+## Limitations in 0.4.0
+
+- Unit tests only; no CI and no real SSH, WSL or local terminal UI tests were run for this release.
 - Password authentication via `sshpass` is best-effort and has not been validated live.
 - Windows and macOS are best-effort.
 - WSL entries are Windows-only and best-effort. They have unit tests but have not been validated against a live WSL installation.
+- Local terminal creation is unit-tested. The VS Code terminal UI and the remote-window error were not validated live.
 - `startCommand` in WSL requires `bash` inside the distribution.
+- The last local `shellArgs` value is not validated as a command flag.
 - Reconnection creates a new terminal; scrollback from the previous terminal is lost.
 - SSH config files (`~/.ssh/config`) are not read; only `ssh-config.json` is used.
 
