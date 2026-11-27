@@ -71,9 +71,34 @@ test('parseConfig detects legacy shell keys', () => {
     const config = baseConfig();
     config.defaultShell = '/bin/zsh';
     config.groups[0].shell = '/bin/fish';
-    config.groups[0].hosts[0].shell = '/bin/bash';
     const result = parseConfig(JSON.stringify(config));
     assert.deepEqual(result.warnings, [LEGACY_SHELL_MESSAGE]);
+});
+
+test('parseConfig does not treat a local shell as legacy', () => {
+    const result = parseConfig(
+        JSON.stringify({
+            groups: [
+                {
+                    name: 'Local',
+                    hosts: [{ type: 'local', name: 'Bash', shell: 'bash' }]
+                }
+            ]
+        })
+    );
+    assert.equal(result.warnings.includes(LEGACY_SHELL_MESSAGE), false);
+});
+
+test('parseConfig warns when an SSH host uses a local shell', () => {
+    const config = baseConfig();
+    config.groups[0].hosts[0].shell = '/bin/bash';
+    const result = parseConfig(JSON.stringify(config));
+    assert.ok(
+        result.warnings.some((warning) =>
+            warning.includes('do not apply to SSH hosts')
+        )
+    );
+    assert.equal(result.warnings.includes(LEGACY_SHELL_MESSAGE), false);
 });
 
 test('resolveConnection applies group defaults', () => {
@@ -224,14 +249,18 @@ test('parseConfig warns about fields that do not apply to WSL', () => {
             ]
         })
     );
-    assert.ok(result.warnings.some((warning) => warning.includes('SSH-only settings')));
+    assert.ok(
+        result.warnings.some((warning) => warning.includes('do not apply to WSL hosts'))
+    );
 });
 
 test('parseConfig warns about WSL-only fields on an SSH host', () => {
     const config = baseConfig();
     config.groups[0].hosts[0].startingDirectory = '/tmp';
     const result = parseConfig(JSON.stringify(config));
-    assert.ok(result.warnings.some((warning) => warning.includes('WSL-only settings')));
+    assert.ok(
+        result.warnings.some((warning) => warning.includes('do not apply to SSH hosts'))
+    );
 });
 
 test('parseConfig warns about a group-level startCommand', () => {
@@ -336,6 +365,180 @@ test('resolveConnection keeps startCommand for SSH', () => {
     const connection = resolveConnection(config.groups[0], config.groups[0].hosts[0]);
     assert.equal(connection.kind, 'ssh');
     assert.equal(connection.startCommand, 'cd /srv/app && exec bash -l');
+});
+
+test('parseConfig accepts a local host without host', () => {
+    const config = parse({
+        groups: [
+            {
+                name: 'Local',
+                hosts: [{ type: 'local', name: 'Local terminal' }]
+            }
+        ]
+    });
+    assert.equal(config.groups[0].hosts[0].type, 'local');
+});
+
+test('parseConfig rejects local startCommand without shell', () => {
+    const config = {
+        groups: [
+            {
+                name: 'Local',
+                hosts: [
+                    {
+                        type: 'local',
+                        name: 'Local terminal',
+                        startCommand: 'opencode'
+                    }
+                ]
+            }
+        ]
+    };
+    assert.throws(() => parseConfig(JSON.stringify(config)), ConfigError);
+});
+
+test('parseConfig rejects local startCommand without shellArgs', () => {
+    const config = {
+        groups: [
+            {
+                name: 'Local',
+                hosts: [
+                    {
+                        type: 'local',
+                        name: 'Local terminal',
+                        shell: 'bash',
+                        startCommand: 'opencode'
+                    }
+                ]
+            }
+        ]
+    };
+    assert.throws(() => parseConfig(JSON.stringify(config)), ConfigError);
+});
+
+test('parseConfig rejects shellArgs without shell', () => {
+    const config = {
+        groups: [
+            {
+                name: 'Local',
+                hosts: [{ type: 'local', name: 'Local terminal', shellArgs: ['-lic'] }]
+            }
+        ]
+    };
+    assert.throws(() => parseConfig(JSON.stringify(config)), ConfigError);
+});
+
+test('parseConfig rejects non-string shellArgs items', () => {
+    const config = {
+        groups: [
+            {
+                name: 'Local',
+                hosts: [{ type: 'local', name: 'Local terminal', shell: 'bash', shellArgs: [1] }]
+            }
+        ]
+    };
+    assert.throws(() => parseConfig(JSON.stringify(config)), ConfigError);
+});
+
+test('parseConfig rejects a relative startingDirectory for a local host', () => {
+    const config = {
+        groups: [
+            {
+                name: 'Local',
+                hosts: [
+                    {
+                        type: 'local',
+                        name: 'Local terminal',
+                        startingDirectory: 'relative/path'
+                    }
+                ]
+            }
+        ]
+    };
+    assert.throws(() => parseConfig(JSON.stringify(config)), ConfigError);
+});
+
+test('parseConfig warns about fields that do not apply to local hosts', () => {
+    const result = parseConfig(
+        JSON.stringify({
+            groups: [
+                {
+                    name: 'Local',
+                    hosts: [
+                        {
+                            type: 'local',
+                            name: 'Local terminal',
+                            host: 'ignored',
+                            port: 22,
+                            user: 'dev',
+                            distribution: 'Ubuntu',
+                            retry: { enabled: false }
+                        }
+                    ]
+                }
+            ]
+        })
+    );
+    assert.ok(
+        result.warnings.some((warning) =>
+            warning.includes('do not apply to Local hosts')
+        )
+    );
+});
+
+test('resolveConnection returns a local connection with defaults', () => {
+    const config = parse({
+        groups: [
+            {
+                name: 'Local',
+                defaultUser: 'ssh-user',
+                defaultPort: 2222,
+                hosts: [{ type: 'local', name: 'Local terminal' }]
+            }
+        ]
+    });
+    const connection = resolveConnection(config.groups[0], config.groups[0].hosts[0]);
+    assert.deepEqual(connection, {
+        kind: 'local',
+        name: 'Local terminal',
+        startingDirectory: '',
+        shell: '',
+        shellArgs: [],
+        startCommand: '',
+        terminalName: 'Local terminal',
+        groupName: 'Local'
+    });
+});
+
+test('resolveConnection builds a local connection with explicit fields', () => {
+    const config = parse({
+        groups: [
+            {
+                name: 'Local',
+                hosts: [
+                    {
+                        type: 'local',
+                        name: 'Bash',
+                        startingDirectory: '/home/dev',
+                        shell: 'bash',
+                        shellArgs: ['-lic'],
+                        startCommand: 'opencode'
+                    }
+                ]
+            }
+        ]
+    });
+    const connection = resolveConnection(config.groups[0], config.groups[0].hosts[0]);
+    assert.deepEqual(connection, {
+        kind: 'local',
+        name: 'Bash',
+        startingDirectory: '/home/dev',
+        shell: 'bash',
+        shellArgs: ['-lic'],
+        startCommand: 'opencode',
+        terminalName: 'Bash',
+        groupName: 'Local'
+    });
 });
 
 test('formatTerminalName supports the distribution placeholder', () => {
