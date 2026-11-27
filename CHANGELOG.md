@@ -2,6 +2,16 @@
 
 All notable changes to the "ssh-connect" extension will be documented in this file.
 
+## [0.4.2] - 2026-11-27
+
+### Fixed
+
+- Removed the proposed `resolvers` API use (`vscode.env.remoteAuthority`) that blocked activation in stable VS Code. The current Remote-WSL distro now comes from `WSL_DISTRO_NAME`.
+
+### Notes
+
+- 0.4.1 is superseded. Install 0.4.2.
+
 ## [0.4.1] - 2026-11-27
 
 ### Fixed

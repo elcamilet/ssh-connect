@@ -124,13 +124,13 @@ test('isWslRemote identifies a Remote-WSL window', () => {
     assert.equal(isWslRemote('dev-container'), false);
 });
 
-test('currentWslDistro reads the distro from the remote authority', () => {
-    assert.equal(currentWslDistro('wsl+Ubuntu-22.04'), 'Ubuntu-22.04');
-    assert.equal(currentWslDistro('wsl+Ubuntu%2022.04'), 'Ubuntu 22.04');
-    assert.equal(currentWslDistro('wsl+'), '');
-    assert.equal(currentWslDistro('ssh-remote+host'), '');
-    assert.equal(currentWslDistro(undefined), '');
-    assert.equal(currentWslDistro('wsl+bad%'), 'bad%');
+test('currentWslDistro reads WSL_DISTRO_NAME', () => {
+    assert.equal(
+        currentWslDistro({ WSL_DISTRO_NAME: 'Ubuntu-22.04' }),
+        'Ubuntu-22.04'
+    );
+    assert.equal(currentWslDistro({}), '');
+    assert.equal(currentWslDistro({ WSL_DISTRO_NAME: 42 }), '');
 });
 
 test('buildWslRemoteInvocation uses the default profile without a start command', () => {

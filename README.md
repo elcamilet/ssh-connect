@@ -23,7 +23,7 @@
 - `sshpass` is optional and only used for saved passwords on Linux/macOS. If it is missing, SSH Connect opens a normal `ssh` session and asks for the password in the terminal.
 - WSL entries from a local Windows window require Windows 10/11 with WSL installed and `wsl.exe` available. In a Remote-WSL window they use the current distro and shell.
 - Local entries require a local VS Code window. Remote-SSH, Remote-WSL and container windows reject them.
-- Windows and macOS support is **best-effort** in 0.4.1.
+- Windows and macOS support is **best-effort** in 0.4.2.
 - Linux and WSL x86-64 and ARM64 are the officially supported platforms.
 
 `sshpass` is not used on Windows. Windows connections use an SSH key/agent or the interactive OpenSSH password prompt.
@@ -398,7 +398,7 @@ The local entry uses the VS Code default profile unless `shell` is set. If `star
 
 `shell` must be a name in `PATH` or an absolute path. Flags belong in `shellArgs`, not in `shell`. If the shell does not exist, VS Code shows its own launch error. VS Code also resolves `${...}` variables in `shellArgs`; do not put secrets in `startCommand` or `shellArgs`.
 
-## Limitations in 0.4.1
+## Limitations in 0.4.2
 
 - Unit tests only; no CI and no real SSH, WSL or local terminal UI tests were run for this release.
 - Password authentication via `sshpass` is best-effort and has not been validated live.

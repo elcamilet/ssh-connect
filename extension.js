@@ -491,7 +491,7 @@ function activate(context) {
 
         if (connection.kind === 'wsl') {
             if (process.platform !== 'win32' && isWslRemote(vscode.env.remoteName)) {
-                const currentDistro = currentWslDistro(vscode.env.remoteAuthority);
+                const currentDistro = currentWslDistro(process.env);
                 const currentUser = os.userInfo().username;
                 for (const warning of wslRemoteWarnings(
                     connection,

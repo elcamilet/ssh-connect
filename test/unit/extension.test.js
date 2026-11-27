@@ -7,7 +7,7 @@ const os = require('os');
 const path = require('path');
 const Module = require('module');
 
-function makeVscode(remoteName, state, remoteAuthority) {
+function makeVscode(remoteName, state) {
     class EventEmitter {
         constructor() {
             this.listeners = [];
@@ -40,7 +40,7 @@ function makeVscode(remoteName, state, remoteAuthority) {
     }
 
     return {
-        env: { remoteName, remoteAuthority },
+        env: { remoteName },
         EventEmitter,
         TreeItem,
         ThemeIcon,
@@ -138,8 +138,8 @@ function makeState() {
     };
 }
 
-function loadExtension(remoteName, state, storageDir, secrets, remoteAuthority) {
-    const vscode = makeVscode(remoteName, state, remoteAuthority);
+function loadExtension(remoteName, state, storageDir, secrets) {
+    const vscode = makeVscode(remoteName, state);
     const originalLoad = Module._load;
     Module._load = function (request, parent, isMain) {
         if (request === 'vscode') {
@@ -210,9 +210,11 @@ test('local terminal extension flow', async () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), 'ssh-connect-test-'));
     const remoteDir = path.join(root, 'remote');
     const localDir = path.join(root, 'local');
+    const previousWslDistro = process.env.WSL_DISTRO_NAME;
     let extension;
 
     try {
+        process.env.WSL_DISTRO_NAME = 'Ubuntu-22.04';
         const remoteSecrets = makeSecrets();
         const remoteState = makeState();
         extension = loadExtension('ssh-remote', remoteState, remoteDir, remoteSecrets);
@@ -239,8 +241,7 @@ test('local terminal extension flow', async () => {
             'wsl',
             wslState,
             wslDir,
-            wslSecrets,
-            'wsl+Ubuntu-22.04'
+            wslSecrets
         );
 
         const wslConfig = JSON.parse(
@@ -357,6 +358,11 @@ test('local terminal extension flow', async () => {
 
         extension.deactivate();
     } finally {
+        if (previousWslDistro === undefined) {
+            delete process.env.WSL_DISTRO_NAME;
+        } else {
+            process.env.WSL_DISTRO_NAME = previousWslDistro;
+        }
         fs.rmSync(root, { recursive: true, force: true });
     }
 });
