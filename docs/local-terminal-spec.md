@@ -157,7 +157,8 @@ openConnection(connection)
    omitted).
 3. A local host with `startCommand` requires `shell` and a non-empty
    `shellArgs`. The command is appended as the last argument. The extension does
-   not quote, split, interpolate or infer the command flag.
+   not quote, split, interpolate or infer the command flag. If the last
+   `shellArgs` value is not a known command flag, it adds a warning.
 4. `startingDirectory` is passed as the terminal `cwd`. It must be an absolute
    path for the current platform. The extension does not expand `~`.
 5. A local host is rejected in a remote window: `vscode.env.remoteName` is set.
@@ -168,9 +169,10 @@ openConnection(connection)
 7. The close listener returns early for a local host and never reads
    `connection.retry`.
 8. SSH-only and WSL-only fields on a local host produce a warning and are
-   ignored. `shell` and `shellArgs` are valid only for local hosts.
+   ignored without validation. `shell` and `shellArgs` are valid only for local
+   hosts.
 9. `host.shell` is no longer a legacy field. The legacy warning stays for
-   `defaultShell`, `group.shell` and root-level `shell`.
+   `defaultShell`, group-level `shell` and root-level `shell`.
 
 ### Tree and configuration
 
@@ -182,7 +184,8 @@ openConnection(connection)
    password action.
 3. The generated configuration adds a `Local` group only when the window is
    local. The group contains `Local terminal` first and, on Windows, `WSL`
-   second. A remote-window installation keeps the previous generated groups.
+   second. A remote-window installation keeps the SSH groups and does not add a
+   `Local` group.
 
 ## Accepted risks
 
@@ -191,9 +194,11 @@ openConnection(connection)
   and does not interpret it. Verified by the `buildLocalInvocation` tests, which
   assert that the command is the last argument and that `logArgs` redacts it.
 - A local host in a remote window is rejected. The item stays visible and the
-  error names the local-window restriction. Verified by AC-06.
-- The last shell argument is not validated as a command flag. A wrong flag
-  fails inside the shell. The README gives one example per shell.
+  error names the local-window restriction. Verified by AC-09.
+- The last shell argument is not inferred. A wrong flag can make the shell read
+  the command as a script file from the current directory. The parser adds a
+  warning when the last `shellArgs` value is not a known command flag. The
+  README gives one example per shell.
 
 ## Acceptance criteria
 
@@ -309,13 +314,15 @@ openConnection(connection)
 | Criterion | Layer | Test |
 | --- | --- | --- |
 | AC-01 to AC-07 | Unit | `test/unit/config.test.js` |
-| AC-08, AC-09, AC-10, AC-11, AC-12, AC-13 | Unit and manual | `test/unit/local.test.js`; manual terminal check |
-| AC-14, AC-15 | Manual | VS Code tree and password picker |
+| AC-08 to AC-12 | Unit and manual | `test/unit/local.test.js`, `test/unit/extension.test.js`; manual terminal check |
+| AC-13, AC-15 | Unit | `test/unit/extension.test.js` |
+| AC-14 | Manual | VS Code tree render |
 | AC-16, AC-17 | Unit | `test/unit/config.test.js` |
 | AC-18 | Unit | Existing SSH/WSL tests |
 
-The terminal creation and tree item paths need a manual check in a local VS Code
-window. They are not unit-tested because `extension.js` requires `vscode`. The
+The terminal creation, tree item render and remote-window error still need a
+manual check in a real VS Code window. `extension.test.js` uses a `vscode` stub
+for the remote guard, password targets, close listener and generated config. The
 unit tests cover the pure config and invocation logic.
 
 ## Documentation
@@ -330,7 +337,8 @@ unit tests cover the pure config and invocation logic.
 
 - Opening a truly local terminal from a remote window with
   `workbench.action.terminal.newLocal`.
-- Inferring or validating the shell command flag.
+- Inferring the shell command flag. An unknown last `shellArgs` value produces a
+  warning, not an error.
 - Expanding `~` in `startingDirectory`.
 - A picker for installed shells or VS Code terminal profiles.
 - `startCommand` without an explicit shell.

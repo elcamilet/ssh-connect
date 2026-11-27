@@ -155,22 +155,22 @@ Group defaults apply to SSH hosts only. WSL and local entries use their own fiel
 | `host` | Hostname or IP address. Required for SSH hosts. Ignored for WSL and local hosts. |
 | `name` | Visible name. Required. |
 | `user` | SSH user. For WSL hosts, the Linux user. Ignored for local hosts. |
-| `port` | SSH port. Overrides `defaultPort`. |
-| `identityFile` | Identity file. Overrides `defaultIdentityFile`. |
+| `port` | SSH only. SSH port. Overrides `defaultPort`. |
+| `identityFile` | SSH only. Identity file. Overrides `defaultIdentityFile`. |
 | `group` | Optional group name used for the SSH group password lookup. |
-| `useGroupPassword` | `"yes"` or `"no"`. Defaults to `"yes"`. |
-| `useIdentityFile` | `"yes"` or `"no"`. Defaults to `"yes"`. |
-| `terminalName` | Terminal label. Supports `{name}`, `{user}`, `{host}`, `{port}` and `{distribution}`. Defaults to `{user}@{host}`; WSL and local default to `{name}`. |
+| `useGroupPassword` | SSH only. `"yes"` or `"no"`. Defaults to `"yes"`. |
+| `useIdentityFile` | SSH only. `"yes"` or `"no"`. Defaults to `"yes"`. |
+| `terminalName` | Terminal label. Supports `{name}`, `{user}`, `{host}`, `{port}` and `{distribution}`. Defaults to `{user}@{host}`; WSL and local default to `{name}`. Local expands only `{name}`; WSL expands `{name}`, `{user}` and `{distribution}`. |
 | `distribution` | WSL only. Distribution name. Defaults to the default WSL distribution. |
 | `startingDirectory` | WSL or local. WSL: absolute Linux path or `~`. Local: absolute path. Defaults to the Linux home (WSL) or the VS Code terminal default (local). |
 | `shell` | Local only. Explicit shell executable. Empty uses the VS Code default profile. |
-| `shellArgs` | Local only. Array of strings passed to `shell`. Requires `shell`; required when `startCommand` is set. |
+| `shellArgs` | Local only. Array of strings passed to `shell`. Requires `shell`; required when `startCommand` is set. The last value must be the shell flag that runs the command. |
 | `startCommand` | SSH, WSL or local. Command to run after connecting. Local requires `shell` and a non-empty `shellArgs`. |
-| `forwardAgent` | `"yes"` or `"no"`. Overrides the group setting. |
-| `connectTimeout` | Overrides the group value. |
-| `serverAliveInterval` | Overrides the group value. |
-| `serverAliveCountMax` | Overrides the group value. |
-| `retry` | Overrides the group retry configuration. |
+| `forwardAgent` | SSH only. `"yes"` or `"no"`. Overrides the group setting. |
+| `connectTimeout` | SSH only. Overrides the group value. |
+| `serverAliveInterval` | SSH only. Overrides the group value. |
+| `serverAliveCountMax` | SSH only. Overrides the group value. |
+| `retry` | SSH only. Overrides the group retry configuration. |
 
 `useGroupPassword` and `useIdentityFile` also accept booleans.
 
@@ -219,7 +219,7 @@ On any platform, a host entry with `"type": "local"` opens a terminal with the V
 }
 ```
 
-This uses the default profile: PowerShell on Windows and `$SHELL` on Linux/macOS. It opens in the VS Code default terminal directory, usually the workspace root.
+This uses the profile selected by `terminal.integrated.defaultProfile.*` (usually PowerShell on Windows and `$SHELL` on Linux/macOS). It opens in the VS Code default terminal directory, usually the workspace root.
 
 Optional fields:
 
@@ -239,6 +239,9 @@ Optional fields:
 - `shellArgs`: array of strings. The last value must be the flag that runs the next argument: `-Command` for PowerShell, `/K` or `/C` for cmd, `-c` or `-lic` for bash.
 - `startCommand`: requires `shell` and a non-empty `shellArgs`. The extension appends it as the last argument.
 - Local entries do not use passwords, group passwords or retry.
+- The extension redacts `startCommand` from its output channel. `shellArgs`, `name`, `shell` and `terminalName` are logged or shown in clear; do not put secrets in them.
+- VS Code resolves `${...}` variables in `shellArgs` before it starts the shell. Do not put secrets in `startCommand` or `shellArgs`.
+- If the last `shellArgs` value is not a known command flag, SSH Connect shows a warning: a wrong flag can make the shell read the command as a script file.
 
 Examples for each shell:
 
@@ -310,7 +313,7 @@ Examples:
 }
 ```
 
-SSH Connect forwards the string as-is. It does not quote or expand it; the remote shell (SSH) or `bash` (WSL) interprets it. It is redacted from the output channel.
+SSH Connect forwards the string as-is. It does not quote or expand it; the remote shell (SSH), `bash` (WSL) or the local shell interprets it. VS Code resolves `${...}` in `shellArgs` before launch. The extension redacts `startCommand` from its output channel; `shellArgs` and the labels are not redacted.
 
 ### Retry configuration
 
@@ -336,6 +339,8 @@ Passwords are stored in VS Code SecretStorage, never in `ssh-config.json`.
 - Group password key: group name.
 - The host password is tried first, then the group password when `useGroupPassword` is not `"no"`.
 - Passwords saved by version 0.1.x using `keytar` are not migrated. Re-enter them once after upgrading.
+
+`ssh-config.json` is plain text. On POSIX, SSH Connect creates it with mode `0600`. Do not store secrets in `startCommand`, `shellArgs`, `name` or `terminalName`.
 
 On Windows, saved passwords are not injected into the SSH command. Use an SSH key/agent or type the password at the OpenSSH prompt. WSL and local entries do not use saved passwords.
 
@@ -389,7 +394,9 @@ Local entries only work in a local VS Code window. Open the folder in a local wi
 
 ### Local: the shell or start command fails
 
-The local entry uses the VS Code default profile unless `shell` is set. If `startCommand` is set, `shell` and `shellArgs` are required, and the last `shellArgs` value must be the flag that runs the command (`-Command`, `/K`, `-c` or `-lic`). The extension does not infer this flag.
+The local entry uses the VS Code default profile unless `shell` is set. If `startCommand` is set, `shell` and `shellArgs` are required, and the last `shellArgs` value must be the flag that runs the command (`-Command`, `/K`, `-c` or `-lic`). The extension does not infer this flag. If the last flag is not a known command flag, SSH Connect shows a warning.
+
+`shell` must be a name in `PATH` or an absolute path. Flags belong in `shellArgs`, not in `shell`. If the shell does not exist, VS Code shows its own launch error. VS Code also resolves `${...}` variables in `shellArgs`; do not put secrets in `startCommand` or `shellArgs`.
 
 ## Limitations in 0.4.0
 
@@ -399,7 +406,10 @@ The local entry uses the VS Code default profile unless `shell` is set. If `star
 - WSL entries are Windows-only and best-effort. They have unit tests but have not been validated against a live WSL installation.
 - Local terminal creation is unit-tested. The VS Code terminal UI and the remote-window error were not validated live.
 - `startCommand` in WSL requires `bash` inside the distribution.
-- The last local `shellArgs` value is not validated as a command flag.
+- The last local `shellArgs` value is not validated as a command flag; a wrong flag produces a warning and can make the shell read the command as a script file.
+- The extension does not pre-check that a local `shell` exists; VS Code reports the launch error.
+- Only `startCommand` is redacted from the extension output channel. `shellArgs` and the labels are not redacted.
+- VS Code resolves `${...}` variables in `shellArgs` before launch.
 - Reconnection creates a new terminal; scrollback from the previous terminal is lost.
 - SSH config files (`~/.ssh/config`) are not read; only `ssh-config.json` is used.
 
