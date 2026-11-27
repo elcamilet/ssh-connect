@@ -2,8 +2,8 @@
 
 ## TL;DR
 
-Add a `local` host type that opens the VS Code default terminal profile, then
-add explicit shells and start commands, then update the generated configuration
+Add a `local` host type that opens the VS Code default terminal profile, supports
+an explicit shell and a start command, then update the generated configuration
 and the documentation. Each step leaves the extension usable and tested.
 
 | | |
@@ -11,62 +11,44 @@ and the documentation. Each step leaves the extension usable and tested.
 | Status | Approved |
 | Branch | `feat/local-terminal` |
 | Date | 2026-11-27 |
-| Revision | 2 - apply spec review RT1-RT10 |
+| Revision | 3 - merge the coupled config and shell steps after RT1 |
 
 ## Goal
 
-Implement `docs/local-terminal-spec.md` (AC-01 to AC-18) in three commits on
+Implement `docs/local-terminal-spec.md` (AC-01 to AC-18) in two commits on
 `feat/local-terminal`.
 
-## Step 1 — Walking skeleton: local entry with the default profile
+## Step 1 — Local terminal capability
 
 **Capability:** a host entry with `type: "local"` appears in the tree and opens
-an editor terminal with the VS Code default profile. Remote windows reject it.
-Local entries are skipped by passwords and retry.
+an editor terminal with the VS Code default profile. It can use an explicit
+shell and start command. Remote windows reject it. Local entries are skipped by
+passwords and retry. `shell` no longer triggers the legacy warning.
 
 **Files:**
 
 - `lib/config.js`: accept `"local"`; do not require `host`; validate an absolute
-  `startingDirectory`; resolve `kind: "local"` with `name`, `startingDirectory`
-  and `terminalName`. No `shell` or `startCommand` yet.
-- `lib/local.js`: `buildLocalInvocation` for the default profile.
+  `startingDirectory`, `shell`, `shellArgs` as an array of strings and the
+  `startCommand` constraint; resolve `kind: "local"`; make the legacy warning
+  apply only to `defaultShell`, `group.shell` and root-level `shell`; warnings
+  for fields that do not apply.
+- `lib/local.js`: `buildLocalInvocation(connection)` returns `command`,
+  `shellPath`, `shellArgs` and redacted `logArgs`.
 - `extension.js`: local branch in `openConnection`, remote-window guard,
   `openEditorTerminal` with optional `shellPath` and `cwd`, local tree item,
   password and retry skips, local close log with an early return.
-- `test/unit/config.test.js`: local validation, resolution and warnings.
-- `test/unit/local.test.js`: default-profile invocation.
+- `test/unit/config.test.js`: local validation, resolution, warnings, legacy
+  shell and generated configuration assertions that do not depend on the new
+  default config.
+- `test/unit/local.test.js`: default-profile, explicit-shell and start-command
+  invocation.
 
 **Tests:** `npm run check`. The pure tests cover config and invocation. The
 terminal UI needs a manual check in a local VS Code window.
 
 **Commit:** `feat: add local terminal entries`.
 
-## Step 2 — Explicit shell and start command
-
-**Capability:** a local entry can set `shell` and `shellArgs`, and can run a
-`startCommand` when both are set. `shell` no longer triggers the legacy warning.
-
-**Files:**
-
-- `lib/config.js`: validate `shell`, `shellArgs` as an array of strings and the
-  `startCommand` constraint; resolve the fields; make the legacy warning apply
-  only to `defaultShell`, `group.shell` and root-level `shell`; warnings for
-  fields that do not apply.
-- `lib/local.js`: append the start command after the shell arguments and redact
-  it from the log.
-- `extension.js`: use the explicit shell, shell arguments, start command and
-  `cwd`; extend the tree description and tooltip.
-- `test/unit/config.test.js`: shell, shell arguments, start-command and legacy
-  warning cases.
-- `test/unit/local.test.js`: explicit shell, start command and redaction.
-
-**Tests:** `npm run check`. A manual local terminal check covers the shell and
-start command; it is not available in this Linux environment without a VS Code
-window.
-
-**Commit:** `feat: support local shells and start commands`.
-
-## Step 3 — Generated configuration, documentation and version
+## Step 2 — Generated configuration, documentation and version
 
 **Capability:** new local-window installations get a local example; the docs and
 version describe 0.4.0.
