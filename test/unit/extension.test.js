@@ -268,6 +268,13 @@ test('local terminal extension flow', async () => {
                     target.targetKind !== 'host' || target.connection.kind === 'ssh'
             )
         );
+        assert.equal(
+            targets.some(
+                (target) =>
+                    target.targetKind === 'group' && target.groupName === 'Local'
+            ),
+            false
+        );
         const localGroup = localState.provider
             .getChildren()
             .find((group) => group.groupName === 'Local');

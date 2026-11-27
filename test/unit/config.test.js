@@ -639,6 +639,86 @@ test('parseConfig warns when the last shellArgs is not a command flag', () => {
     );
 });
 
+test('parseConfig warns for an unsupported shell command flag', () => {
+    const result = parseConfig(
+        JSON.stringify({
+            groups: [
+                {
+                    name: 'Local',
+                    hosts: [
+                        {
+                            type: 'local',
+                            name: 'Bash',
+                            shell: 'bash',
+                            shellArgs: ['--command'],
+                            startCommand: 'opencode'
+                        }
+                    ]
+                }
+            ]
+        })
+    );
+    assert.ok(
+        result.warnings.some((warning) =>
+            warning.includes('shellArgs ending in "--command"')
+        )
+    );
+});
+
+test('parseConfig accepts command flags without case sensitivity', () => {
+    for (const flag of ['-Command', '-command', '/K', '/k', '/C', '/c']) {
+        const result = parseConfig(
+            JSON.stringify({
+                groups: [
+                    {
+                        name: 'Local',
+                        hosts: [
+                            {
+                                type: 'local',
+                                name: 'Shell',
+                                shell: 'powershell.exe',
+                                shellArgs: [flag],
+                                startCommand: 'opencode'
+                            }
+                        ]
+                    }
+                ]
+            })
+        );
+        assert.equal(
+            result.warnings.some((warning) =>
+                warning.includes('shellArgs ending in')
+            ),
+            false
+        );
+    }
+});
+
+test('parseConfig warns when shellArgs has a command flag without startCommand', () => {
+    const result = parseConfig(
+        JSON.stringify({
+            groups: [
+                {
+                    name: 'Local',
+                    hosts: [
+                        {
+                            type: 'local',
+                            name: 'Bash',
+                            shell: 'bash',
+                            shellArgs: ['-lic']
+                        }
+                    ]
+                }
+            ]
+        })
+    );
+    assert.ok(
+        result.warnings.some((warning) =>
+            warning.includes('has no startCommand')
+        )
+    );
+});
+
 test('parseConfig keeps the WSL group name without a warning', () => {
     const result = parseConfig(
         JSON.stringify({

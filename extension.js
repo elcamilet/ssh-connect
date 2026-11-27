@@ -20,10 +20,10 @@ function getFixedSSHConfigPath(context) {
             isRemote: !canOpenLocal(vscode.env.remoteName)
         });
         fs.mkdirSync(path.dirname(configPath), { recursive: true });
-        fs.writeFileSync(configPath, JSON.stringify(template, null, 2), 'utf-8');
-        if (process.platform !== 'win32') {
-            fs.chmodSync(configPath, 0o600);
-        }
+        fs.writeFileSync(configPath, JSON.stringify(template, null, 2), {
+            encoding: 'utf-8',
+            mode: 0o600
+        });
     }
     return configPath;
 }
