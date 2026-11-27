@@ -25,6 +25,26 @@ npm run package      # vsce package; prepublish runs check
 - Manual verification is limited to activation/UI, plus a one-off Windows identity-file connection in 0.2.0. WSL entries in 0.3.0 and local terminal entries in 0.4.0 have unit tests only and have not been validated against a live VS Code terminal. Do not claim that `sshpass`, stored passwords, macOS, WSL or the local terminal UI were validated live.
 - VSIX artifacts are gitignored.
 
+## Release
+
+- Before you say that credentials are missing, check `gh auth status` and the
+  `vscode-vsce` keyring entry for `elcamilet`.
+- Merge the pull request to `master` before publishing. Do not publish a feature
+  branch.
+- Confirm `git status --short` is empty, run `npm run check`, then run
+  `npm run package` on `master`.
+- Publish the generated VSIX with
+  `node node_modules/@vscode/vsce/vsce publish --packagePath ssh-connect-<version>.vsix`.
+- Wait until `vsce show elcamilet.ssh-connect` reports the new version before
+  saying it is live.
+
+## Review process
+
+- Before you launch red-team subagents, commit or stash. Do not edit source
+  files until they finish; the reviewed commit must match the working tree.
+- When a yak-pilot run is active, run its `check_plan.py` at each phase end and
+  fix every reported problem before the next phase.
+
 ## Runtime architecture
 
 - Activation: view `sshHostsView` plus commands `ssh-connect.editConfig`, `.savePassword`, `.deletePassword`. `ssh-connect.connectHost` is only invoked by tree items.
