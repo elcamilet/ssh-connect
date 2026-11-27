@@ -6,6 +6,7 @@ const fs = require('fs');
 const { execFileSync } = require('child_process');
 const { createDefaultConfig, parseConfig, resolveConnection } = require('./lib/config');
 const { buildTerminalInvocation } = require('./lib/ssh');
+const { buildLocalInvocation, canOpenLocal } = require('./lib/local');
 const { PasswordStore } = require('./lib/passwords');
 const { shouldRetry, retryDelayMs } = require('./lib/retry');
 
@@ -15,9 +16,14 @@ const retryTimers = new Set();
 function getFixedSSHConfigPath(context) {
     const configPath = path.join(context.globalStorageUri.fsPath, 'ssh-config.json');
     if (!fs.existsSync(configPath)) {
-        const template = createDefaultConfig(process.platform);
+        const template = createDefaultConfig(process.platform, {
+            isRemote: !canOpenLocal(vscode.env.remoteName)
+        });
         fs.mkdirSync(path.dirname(configPath), { recursive: true });
-        fs.writeFileSync(configPath, JSON.stringify(template, null, 2), 'utf-8');
+        fs.writeFileSync(configPath, JSON.stringify(template, null, 2), {
+            encoding: 'utf-8',
+            mode: 0o600
+        });
     }
     return configPath;
 }
@@ -69,15 +75,24 @@ function resolveWslPath() {
     return findExecutable('wsl.exe');
 }
 
-function openEditorTerminal({ name, shellPath, shellArgs, env }) {
-    const terminal = vscode.window.createTerminal({
+function openEditorTerminal({ name, shellPath, shellArgs, cwd, env }) {
+    const options = {
         name,
         location: vscode.TerminalLocation.Editor,
-        isTransient: true,
-        shellPath,
-        shellArgs,
-        env
-    });
+        isTransient: true
+    };
+    if (shellPath) {
+        options.shellPath = shellPath;
+        options.shellArgs = shellArgs || [];
+    }
+    if (cwd) {
+        options.cwd = cwd;
+    }
+    if (env) {
+        options.env = env;
+    }
+
+    const terminal = vscode.window.createTerminal(options);
     terminal.show();
     return terminal;
 }
@@ -135,7 +150,7 @@ class SSHHostsProvider {
         const targets = [];
         for (const group of this.groups) {
             const sshHosts = group.children.filter(
-                (host) => host.connection.kind !== 'wsl'
+                (host) => host.connection.kind === 'ssh'
             );
             if (sshHosts.length > 0) {
                 targets.push({
@@ -169,26 +184,53 @@ class SSHGroupItem extends vscode.TreeItem {
         this.groupName = label;
         this.children = children;
         this.contextValue = children.some(
-            (child) => child.connection.kind !== 'wsl'
+            (child) => child.connection.kind === 'ssh'
         )
             ? 'group'
-            : 'wslGroup';
+            : 'noSshHosts';
         this.iconPath = new vscode.ThemeIcon('folder');
     }
 }
 
 class SSHHostItem extends vscode.TreeItem {
     constructor(connection) {
-        const isWsl = connection.kind === 'wsl';
+        const kind = connection.kind;
+        const isWsl = kind === 'wsl';
+        const isLocal = kind === 'local';
+        const isSsh = kind === 'ssh' || kind === undefined;
+        if (!isSsh && !isWsl && !isLocal) {
+            throw new Error(`Unsupported connection kind: ${kind}`);
+        }
+
         super(
-            isWsl ? connection.name : `${connection.name} (${connection.host})`,
+            isSsh ? `${connection.name} (${connection.host})` : connection.name,
             vscode.TreeItemCollapsibleState.None
         );
         this.connection = connection;
-        this.contextValue = isWsl ? 'wslHost' : 'host';
-        this.iconPath = new vscode.ThemeIcon(isWsl ? 'terminal' : 'server');
+        this.contextValue = isSsh ? 'host' : isWsl ? 'wslHost' : 'localHost';
+        this.iconPath = new vscode.ThemeIcon(
+            isSsh ? 'server' : isWsl ? 'terminal' : 'device-desktop'
+        );
 
-        if (isWsl) {
+        if (isSsh) {
+            this.description = `${connection.user}@${connection.host}:${connection.port}`;
+            const tooltip = [
+                `HostName: ${connection.host}`,
+                `Name: ${connection.name}`,
+                `User: ${connection.user}`,
+                `Port: ${connection.port}`,
+                `IdentityFile: ${connection.identityFile || 'None'}`,
+                `Group: ${connection.groupName}`,
+                `Use Group Password: ${connection.useGroupPassword}`,
+                `Use Identity File: ${connection.useIdentityFile}`,
+                `Forward Agent: ${connection.forwardAgent}`,
+                `Terminal Name: ${connection.terminalName}`
+            ];
+            if (connection.startCommand) {
+                tooltip.push(`Start Command: ${connection.startCommand}`);
+            }
+            this.tooltip = tooltip.join('\n');
+        } else if (isWsl) {
             this.description = `WSL · ${connection.distribution || 'default distro'}${
                 connection.user ? ` · ${connection.user}` : ''
             }`;
@@ -206,17 +248,17 @@ class SSHHostItem extends vscode.TreeItem {
             }
             this.tooltip = tooltip.join('\n');
         } else {
-            this.description = `${connection.user}@${connection.host}:${connection.port}`;
+            this.description = `Local · ${
+                connection.shell ? path.basename(connection.shell) : 'default profile'
+            }`;
+            const shellArgs = connection.shellArgs.join(' ');
             const tooltip = [
-                `HostName: ${connection.host}`,
+                'Kind: Local',
                 `Name: ${connection.name}`,
-                `User: ${connection.user}`,
-                `Port: ${connection.port}`,
-                `IdentityFile: ${connection.identityFile || 'None'}`,
+                `Shell: ${connection.shell || 'default profile'}`,
+                `Shell Arguments: ${shellArgs || 'None'}`,
+                `Starting Directory: ${connection.startingDirectory || 'VS Code default'}`,
                 `Group: ${connection.groupName}`,
-                `Use Group Password: ${connection.useGroupPassword}`,
-                `Use Identity File: ${connection.useIdentityFile}`,
-                `Forward Agent: ${connection.forwardAgent}`,
                 `Terminal Name: ${connection.terminalName}`
             ];
             if (connection.startCommand) {
@@ -235,7 +277,7 @@ class SSHHostItem extends vscode.TreeItem {
 
 function targetFromItem(item) {
     if (item instanceof SSHHostItem) {
-        if (item.connection.kind === 'wsl') {
+        if (item.connection.kind === 'wsl' || item.connection.kind === 'local') {
             return undefined;
         }
         const connection = item.connection;
@@ -246,7 +288,7 @@ function targetFromItem(item) {
         };
     }
     if (item instanceof SSHGroupItem) {
-        if (item.contextValue === 'wslGroup') {
+        if (item.contextValue !== 'group') {
             return undefined;
         }
         return {
@@ -415,6 +457,30 @@ function activate(context) {
     }
 
     async function openConnection(connection, attempt = 1) {
+        if (connection.kind === 'local') {
+            if (!canOpenLocal(vscode.env.remoteName)) {
+                vscode.window.showErrorMessage(
+                    'SSH Connect: local terminals are only available in local windows.'
+                );
+                return;
+            }
+
+            const invocation = buildLocalInvocation(connection);
+            output.appendLine(`[connect] local ${connection.name}`);
+            output.appendLine(
+                `[command] ${[invocation.logCommand, ...invocation.logArgs].join(' ')}`
+            );
+
+            const terminal = openEditorTerminal({
+                name: connection.terminalName,
+                shellPath: invocation.shellPath,
+                shellArgs: invocation.shellArgs,
+                cwd: connection.startingDirectory || undefined
+            });
+            activeTerminals.set(terminal, { connection, attempt });
+            return;
+        }
+
         if (connection.kind === 'wsl') {
             if (!wslAvailable) {
                 vscode.window.showErrorMessage(
@@ -502,6 +568,15 @@ function activate(context) {
         }
         activeTerminals.delete(terminal);
         const exitCode = terminal.exitStatus ? terminal.exitStatus.code : undefined;
+
+        if (state.connection.kind === 'local') {
+            output.appendLine(
+                `[close] local ${state.connection.name} exit ${
+                    exitCode === undefined ? 'unknown' : exitCode
+                }`
+            );
+            return;
+        }
 
         if (state.connection.kind === 'wsl') {
             output.appendLine(

@@ -221,3 +221,17 @@ test('buildTerminalInvocation keeps the start command with sshpass', () => {
     assert.equal(invocation.args.includes('secret'), false);
     assert.equal(invocation.logArgs[invocation.logArgs.length - 1], '<startCommand>');
 });
+
+test('buildTerminalInvocation rejects a local connection', () => {
+    assert.throws(
+        () => buildTerminalInvocation({ kind: 'local', shell: 'bash' }, 'linux', {}),
+        /Unsupported connection kind: local/
+    );
+});
+
+test('buildTerminalInvocation rejects an unknown connection kind', () => {
+    assert.throws(
+        () => buildTerminalInvocation({ kind: 'container' }, 'linux', {}),
+        /Unsupported connection kind: container/
+    );
+});
