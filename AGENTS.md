@@ -22,7 +22,7 @@ npm run package      # vsce package; prepublish runs check
 ```
 
 - F5 with "Run Extension" (`.vscode/launch.json`) opens an Extension Development Host.
-- Manual verification is limited to activation/UI, plus a one-off Windows identity-file connection in 0.2.0. WSL entries in 0.3.0 and local terminal entries in 0.4.0 have unit tests only and have not been validated against a live VS Code terminal. Do not claim that `sshpass`, stored passwords, macOS, WSL or the local terminal UI were validated live.
+- Manual verification is limited to activation/UI, plus a one-off Windows identity-file connection in 0.2.0. WSL entries in 0.3.0, local terminal entries in 0.4.0 and the Remote-WSL shell path in 0.4.1 have unit tests only and have not been validated against a live VS Code terminal. Do not claim that `sshpass`, stored passwords, macOS, WSL or the local terminal UI were validated live.
 - VSIX artifacts are gitignored.
 
 ## Release
@@ -56,8 +56,10 @@ npm run package      # vsce package; prepublish runs check
 - `useGroupPassword` / `useIdentityFile` are `"yes"`/`"no"` strings; booleans are also accepted. Only `"no"` disables.
 - Keep-alive defaults: `ConnectTimeout=10`, `ServerAliveInterval=30`, `ServerAliveCountMax=3`. Retry is opt-in (`enabled: false`, 3 attempts, 5s delay) and only triggers on SSH exit code `255`. With `startCommand`, exit code `255` can also come from the remote command.
 - Terminal label defaults to `{user}@{host}`; `terminalName` supports `{name}`, `{user}`, `{host}`, `{port}` and `{distribution}`. WSL and local default to `{name}`. Local expands only `{name}`; WSL expands `{name}`, `{user}` and `{distribution}`.
-- WSL entries use `type: "wsl"`; `host` is not required. Group SSH defaults do not apply to them. They launch `wsl.exe` with `--distribution`, `--user`, `--cd` and optionally `--exec bash -lic <startCommand>`.
-- WSL entries are Windows-only. `wsl.exe` is resolved from `%SystemRoot%\System32\wsl.exe` first, then PATH. They skip password lookup and retry.
+- WSL entries use `type: "wsl"`; `host` is not required. Group SSH defaults do not apply to them. From a local Windows window they launch `wsl.exe` with `--distribution`, `--user`, `--cd` and optionally `--exec bash -lic <startCommand>`.
+- In a Remote-WSL window (`vscode.env.remoteName === 'wsl'` and a Linux extension host), a WSL entry opens a terminal in the current distro with the default shell. `startCommand` runs with `bash -lic`. The current distro comes from `vscode.env.remoteAuthority` (`wsl+<distro>`); the current user comes from `os.userInfo().username`.
+- `distribution` and `user` overrides are only honored from a local Windows window. In Remote-WSL, a mismatch warns and the current window is used. On native Linux/macOS and Remote-SSH/container windows, a WSL entry shows an error.
+- From a local Windows window, `wsl.exe` is resolved from `%SystemRoot%\System32\wsl.exe` first, then PATH. WSL entries skip password lookup and retry.
 - Local entries use `type: "local"`; `host` is not required. They use the VS Code default terminal profile unless `shell` is set. `startingDirectory` is an absolute local path and maps to `cwd`. `shellArgs` is an array of strings; `startCommand` requires `shell` and a non-empty `shellArgs`. They skip password lookup and retry.
 - A local `shellArgs` value that is not a known command flag produces a warning when `startCommand` is set; a wrong flag can make the shell read the command as a script file.
 - Local entries work only in local windows: `vscode.env.remoteName` rejects them. The internal `workbench.action.terminal.newLocal` command is not used.
@@ -74,9 +76,9 @@ npm run package      # vsce package; prepublish runs check
 ## Support and quality constraints
 
 - Official support: Linux/WSL x86-64 and ARM64.
-- Windows: best-effort. Identity-file authentication was manually verified in 0.2.0; stored passwords are not injected. WSL entries are Windows-only and have not been validated live. Local entries work on all platforms in local windows and have not been validated live.
+- Windows: best-effort. Identity-file authentication was manually verified in 0.2.0; stored passwords are not injected. WSL entries work from a local Windows window or a Remote-WSL window and have not been validated live. Local entries work on all platforms in local windows and have not been validated live.
 - macOS: best-effort, not validated live.
-- 0.4.0 has unit tests only; no CI, integration tests or Docker SSH. Live verification is limited to the manual Windows identity-file test.
+- 0.4.1 has unit tests only; no CI, integration tests or Docker SSH. Live verification is limited to the manual Windows identity-file test.
 - README/CHANGELOG must state these limitations honestly.
 - Keep VS Code API usage compatible with `engines.vscode: ^1.96.0`.
 - `npm audit` reports a high-severity advisory inside the `@vscode/vsce` dev toolchain (Azure auth). Runtime dependencies are clean (`npm audit --omit=dev`).

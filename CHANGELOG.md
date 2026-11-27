@@ -2,6 +2,18 @@
 
 All notable changes to the "ssh-connect" extension will be documented in this file.
 
+## [0.4.1] - 2026-11-27
+
+### Fixed
+
+- A WSL entry in a Remote-WSL window now opens a terminal in the current distribution with the default shell (`bash`/`zsh`) instead of showing the `wsl.exe` error.
+- `distribution` and `user` mismatches show a warning and use the current window.
+- `startCommand` runs with `bash -lic` in a Remote-WSL window.
+
+### Notes
+
+- The Remote-WSL shell path is covered by unit tests with a `vscode` stub. No live Remote-WSL window was opened for this release.
+
 ## [0.4.0] - 2026-11-27
 
 ### Added

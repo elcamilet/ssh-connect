@@ -19,11 +19,11 @@
 ## Requirements
 
 - VS Code `1.96.0` or newer.
-- An OpenSSH client (`ssh`) available in `PATH` for SSH hosts. WSL entries use `wsl.exe`; local entries use the VS Code terminal profile.
+- An OpenSSH client (`ssh`) available in `PATH` for SSH hosts. WSL entries use `wsl.exe` from Windows and the current shell in Remote-WSL; local entries use the VS Code terminal profile.
 - `sshpass` is optional and only used for saved passwords on Linux/macOS. If it is missing, SSH Connect opens a normal `ssh` session and asks for the password in the terminal.
-- WSL entries require Windows 10/11 with WSL installed and `wsl.exe` available.
+- WSL entries from a local Windows window require Windows 10/11 with WSL installed and `wsl.exe` available. In a Remote-WSL window they use the current distro and shell.
 - Local entries require a local VS Code window. Remote-SSH, Remote-WSL and container windows reject them.
-- Windows and macOS support is **best-effort** in 0.4.0.
+- Windows and macOS support is **best-effort** in 0.4.1.
 - Linux and WSL x86-64 and ARM64 are the officially supported platforms.
 
 `sshpass` is not used on Windows. Windows connections use an SSH key/agent or the interactive OpenSSH password prompt.
@@ -40,7 +40,7 @@ code --install-extension elcamilet.ssh-connect
 
 1. Open the **SSH Connect** view in the activity bar.
 2. Click an SSH host to open an SSH connection in an editor-area terminal.
-3. In a local window, click a local entry to open a terminal with the local shell, or a WSL entry to open the local distribution.
+3. From a local Windows or Remote-WSL window, click a WSL entry to open the distribution from Windows or the current WSL shell. In a local window, a local entry opens the local shell.
 4. Use **Edit configuration file** from the view title or the command palette to edit `ssh-config.json`.
 5. Use **Save password for group or host** from the view title, the command palette, or the context menu of a host/group.
 6. Use **Delete saved password for group or host** from the same locations.
@@ -206,7 +206,7 @@ Optional fields:
 - `startCommand`: runs with `bash -lic` after `--cd`. The distribution must have `bash`.
 - `host`, `port`, `identityFile`, `useGroupPassword`, `useIdentityFile`, `forwardAgent`, keep-alive and `retry` do not apply to WSL entries.
 
-WSL entries are only available in a local Windows VS Code window. In a Remote-WSL window the editor is already inside WSL; on Linux and macOS the entry shows an error.
+From a local Windows window, a WSL entry launches the selected distribution with `wsl.exe`. In a Remote-WSL window, it opens a terminal in the current distribution with the default shell (`bash`/`zsh`). `distribution` and `user` are only honored from Windows; a mismatch shows a warning and the current window is used. `startCommand` runs with `bash -lic` in both cases. On native Linux/macOS and Remote-SSH/container windows, the entry shows an error.
 
 ### Local terminals
 
@@ -282,7 +282,7 @@ Local entries only work in a local Windows, Linux or macOS VS Code window. In Re
 `startCommand` is available for SSH, WSL and local hosts. It runs after the connection is established. It is configured per host; a group-level `startCommand` is ignored with a warning.
 
 - SSH: `ssh -t user@host "startCommand"`. The command runs in the remote shell with a TTY.
-- WSL: `wsl.exe ... --exec bash -lic "startCommand"`.
+- WSL: `wsl.exe ... --exec bash -lic "startCommand"` from Windows; in a Remote-WSL window, `bash -lic "startCommand"` in the current distro.
 - Local: `shell`, then `shellArgs`, then the command. Local hosts require both `shell` and a non-empty `shellArgs`.
 
 Examples:
@@ -382,7 +382,7 @@ Install the OpenSSH Client optional feature or ensure `ssh.exe` is in `PATH`. SS
 
 ### WSL: `wsl.exe` was not found
 
-Install WSL or enable the Windows Subsystem for Linux optional feature, then verify that `wsl.exe` is available. WSL entries are Windows-only.
+Install WSL or enable the Windows Subsystem for Linux optional feature, then verify that `wsl.exe` is available. A local Windows WSL entry needs `wsl.exe`; a Remote-WSL entry uses the current distro shell.
 
 ### WSL: `startCommand` fails with `command not found`
 
@@ -398,13 +398,13 @@ The local entry uses the VS Code default profile unless `shell` is set. If `star
 
 `shell` must be a name in `PATH` or an absolute path. Flags belong in `shellArgs`, not in `shell`. If the shell does not exist, VS Code shows its own launch error. VS Code also resolves `${...}` variables in `shellArgs`; do not put secrets in `startCommand` or `shellArgs`.
 
-## Limitations in 0.4.0
+## Limitations in 0.4.1
 
 - Unit tests only; no CI and no real SSH, WSL or local terminal UI tests were run for this release.
 - Password authentication via `sshpass` is best-effort and has not been validated live.
 - Windows and macOS are best-effort.
-- WSL entries are Windows-only and best-effort. They have unit tests but have not been validated against a live WSL installation.
-- Local terminal creation is unit-tested. The VS Code terminal UI and the remote-window error were not validated live.
+- WSL entries from a local Windows window are best-effort and have not been validated against a live WSL installation. Remote-WSL entries are unit-tested with a `vscode` stub; no live Remote-WSL window was opened.
+- Local terminal creation is unit-tested. The VS Code terminal UI and the remote-window error were not validated live. The Remote-WSL shell path is also covered by the extension stub, not by a live Remote-WSL window.
 - `startCommand` in WSL requires `bash` inside the distribution.
 - The last local `shellArgs` value is not rejected when it is not a known command flag; an unknown flag produces a warning and can make the shell read the command as a script file.
 - The extension does not pre-check that a local `shell` exists; VS Code reports the launch error.
