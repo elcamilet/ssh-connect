@@ -337,8 +337,9 @@ unit tests cover the pure config and invocation logic.
 
 - Opening a truly local terminal from a remote window with
   `workbench.action.terminal.newLocal`.
-- Inferring the shell command flag. An unknown last `shellArgs` value produces a
-  warning, not an error.
+- Inferring the shell command flag. When `startCommand` is set, an unknown
+  last `shellArgs` value produces a warning, not an error. A command flag
+  without `startCommand` also produces a warning.
 - Expanding `~` in `startingDirectory`.
 - A picker for installed shells or VS Code terminal profiles.
 - `startCommand` without an explicit shell.

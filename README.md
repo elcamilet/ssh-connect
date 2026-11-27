@@ -67,7 +67,7 @@ On stable VS Code for Linux, this is usually:
 ~/.config/Code/User/globalStorage/elcamilet.ssh-connect/ssh-config.json
 ```
 
-The file is created automatically with a small example if it does not exist. In a local window, the generated file includes a `Local` group with a `Local terminal` entry. On Windows it also includes a `WSL` entry. A remote window does not add the `Local` group.
+The file is created automatically with a small example if it does not exist. In a local window, the generated file includes a `Local` group with a `Local terminal` entry. In a local window on Windows, it also includes a `WSL` entry. A remote window does not add the `Local` group.
 
 ### Example
 
@@ -157,7 +157,7 @@ Group defaults apply to SSH hosts only. WSL and local entries use their own fiel
 | `user` | SSH user. For WSL hosts, the Linux user. Ignored for local hosts. |
 | `port` | SSH only. SSH port. Overrides `defaultPort`. |
 | `identityFile` | SSH only. Identity file. Overrides `defaultIdentityFile`. |
-| `group` | Optional group name used for the SSH group password lookup. |
+| `group` | Optional group name used for the SSH group password lookup. WSL uses it as a display group; local entries ignore it. |
 | `useGroupPassword` | SSH only. `"yes"` or `"no"`. Defaults to `"yes"`. |
 | `useIdentityFile` | SSH only. `"yes"` or `"no"`. Defaults to `"yes"`. |
 | `terminalName` | Terminal label. Supports `{name}`, `{user}`, `{host}`, `{port}` and `{distribution}`. Defaults to `{user}@{host}`; WSL and local default to `{name}`. Local expands only `{name}`; WSL expands `{name}`, `{user}` and `{distribution}`. |
@@ -241,7 +241,7 @@ Optional fields:
 - Local entries do not use passwords, group passwords or retry.
 - The extension redacts `startCommand` from its output channel. `shellArgs`, `name`, `shell` and `terminalName` are logged or shown in clear; do not put secrets in them.
 - VS Code resolves `${...}` variables in `shellArgs` before it starts the shell. Do not put secrets in `startCommand` or `shellArgs`.
-- If the last `shellArgs` value is not a known command flag, SSH Connect shows a warning: a wrong flag can make the shell read the command as a script file.
+- If `startCommand` is set and the last `shellArgs` value is not a known command flag, SSH Connect shows a warning: a wrong flag can make the shell read the command as a script file.
 
 Examples for each shell:
 
@@ -340,7 +340,7 @@ Passwords are stored in VS Code SecretStorage, never in `ssh-config.json`.
 - The host password is tried first, then the group password when `useGroupPassword` is not `"no"`.
 - Passwords saved by version 0.1.x using `keytar` are not migrated. Re-enter them once after upgrading.
 
-`ssh-config.json` is plain text. On POSIX, SSH Connect creates it with mode `0600`. Do not store secrets in `startCommand`, `shellArgs`, `name` or `terminalName`.
+`ssh-config.json` is plain text. On POSIX, SSH Connect creates a new file with mode `0600`. Do not store secrets in `startCommand`, `shellArgs`, `name` or `terminalName`.
 
 On Windows, saved passwords are not injected into the SSH command. Use an SSH key/agent or type the password at the OpenSSH prompt. WSL and local entries do not use saved passwords.
 
@@ -406,7 +406,7 @@ The local entry uses the VS Code default profile unless `shell` is set. If `star
 - WSL entries are Windows-only and best-effort. They have unit tests but have not been validated against a live WSL installation.
 - Local terminal creation is unit-tested. The VS Code terminal UI and the remote-window error were not validated live.
 - `startCommand` in WSL requires `bash` inside the distribution.
-- The last local `shellArgs` value is not validated as a command flag; a wrong flag produces a warning and can make the shell read the command as a script file.
+- The last local `shellArgs` value is not rejected when it is not a known command flag; an unknown flag produces a warning and can make the shell read the command as a script file.
 - The extension does not pre-check that a local `shell` exists; VS Code reports the launch error.
 - Only `startCommand` is redacted from the extension output channel. `shellArgs` and the labels are not redacted.
 - VS Code resolves `${...}` variables in `shellArgs` before launch.

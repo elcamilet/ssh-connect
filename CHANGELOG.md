@@ -21,7 +21,7 @@ All notable changes to the "ssh-connect" extension will be documented in this fi
 ### Notes
 
 - Local entries work only in local windows. Remote-SSH, Remote-WSL and container windows show an error.
-- The last local `shellArgs` value must be the flag that runs the start command; the extension does not infer it. An unknown flag produces a warning.
+- With `startCommand`, the last local `shellArgs` value must be the flag that runs the command; the extension does not infer it. An unknown flag produces a warning, not an error.
 - Local terminal creation is unit-tested, including a `vscode` stub for the remote guard and password filter. The VS Code terminal UI was not validated live.
 - Only `startCommand` is redacted from the extension output channel. `shellArgs` and the labels are not redacted. VS Code resolves `${...}` in `shellArgs` before launch.
 - On POSIX, the generated `ssh-config.json` uses mode `0600`.

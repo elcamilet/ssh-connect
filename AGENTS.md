@@ -35,16 +35,16 @@ npm run package      # vsce package; prepublish runs check
 - Defaults: `host.user` → `group.defaultUser` → `root`; `host.port` → `group.defaultPort` → `22`; `host.identityFile` → `group.defaultIdentityFile`; password group is `host.group || group.name`. These group defaults apply to SSH hosts only.
 - `useGroupPassword` / `useIdentityFile` are `"yes"`/`"no"` strings; booleans are also accepted. Only `"no"` disables.
 - Keep-alive defaults: `ConnectTimeout=10`, `ServerAliveInterval=30`, `ServerAliveCountMax=3`. Retry is opt-in (`enabled: false`, 3 attempts, 5s delay) and only triggers on SSH exit code `255`. With `startCommand`, exit code `255` can also come from the remote command.
-- Terminal label defaults to `{user}@{host}`; `terminalName` supports `{name}`, `{user}`, `{host}`, `{port}` and `{distribution}`. WSL and local default to `{name}`.
+- Terminal label defaults to `{user}@{host}`; `terminalName` supports `{name}`, `{user}`, `{host}`, `{port}` and `{distribution}`. WSL and local default to `{name}`. Local expands only `{name}`; WSL expands `{name}`, `{user}` and `{distribution}`.
 - WSL entries use `type: "wsl"`; `host` is not required. Group SSH defaults do not apply to them. They launch `wsl.exe` with `--distribution`, `--user`, `--cd` and optionally `--exec bash -lic <startCommand>`.
 - WSL entries are Windows-only. `wsl.exe` is resolved from `%SystemRoot%\System32\wsl.exe` first, then PATH. They skip password lookup and retry.
 - Local entries use `type: "local"`; `host` is not required. They use the VS Code default terminal profile unless `shell` is set. `startingDirectory` is an absolute local path and maps to `cwd`. `shellArgs` is an array of strings; `startCommand` requires `shell` and a non-empty `shellArgs`. They skip password lookup and retry.
-- A local `shellArgs` value that is not a known command flag produces a warning; a wrong flag can make the shell read the command as a script file.
+- A local `shellArgs` value that is not a known command flag produces a warning when `startCommand` is set; a wrong flag can make the shell read the command as a script file.
 - Local entries work only in local windows: `vscode.env.remoteName` rejects them. The internal `workbench.action.terminal.newLocal` command is not used.
 - `startCommand` is supported on SSH, WSL and local hosts and is configured per host. A group-level `startCommand` is ignored with a warning. SSH adds `-t` and appends the command after `user@host`; WSL forwards it to `bash -lic`; local appends it after `shellArgs`. The extension does not quote or interpolate it. Only `startCommand` is redacted from the output channel; `shellArgs` and labels are not. VS Code resolves `${...}` in `shellArgs` before launch.
 - The generated config adds a `Local` group only in a local window. It is pure (`createDefaultConfig(platform, { isRemote })`) and never runs a shell.
-- On POSIX, `ssh-config.json` is created with mode `0600`. It is plain text; do not store secrets in `startCommand`, `shellArgs`, `name` or `terminalName`.
-- Terminal creation runs `ssh`, `sshpass`, `wsl.exe` or the VS Code default profile directly. Never use `cmd.exe -c` or an intermediate shell.
+- On POSIX, a new `ssh-config.json` is created with mode `0600`. It is plain text; do not store secrets in `startCommand`, `shellArgs`, `name` or `terminalName`.
+- Terminal creation runs `ssh`, `sshpass`, `wsl.exe`, the VS Code default profile or an explicit local shell directly. Never use `cmd.exe -c` or an intermediate shell.
 - `sshpass` uses `-e` with `SSHPASS` in the terminal environment; the password must never appear in `shellArgs` or logs.
 - On Windows, saved passwords are not injected: use key/agent or the OpenSSH prompt. `ssh.exe` is resolved from `%SystemRoot%\System32\OpenSSH\ssh.exe` first, then PATH.
 - If `sshpass` is missing on Linux/macOS, connect with plain `ssh` and warn.

@@ -38,8 +38,9 @@ skip passwords and retry.
   This is the least surprising default and keeps shell customization opt-in.
 - A start command needs `shell` and the command flag in `shellArgs`. The
   configuration is more verbose, and a wrong flag can make the shell read the
-  command as a script file from the current directory. The parser warns when the
-  last `shellArgs` value is not a known command flag.
+  command as a script file from the current directory. When `startCommand` is
+  set, the parser warns if the last `shellArgs` value is not a known command
+  flag. It also warns when a command flag has no start command.
 - Remote windows reject local entries. The extension does not use the internal
   `workbench.action.terminal.newLocal` command.
 - The generated configuration adds a `Local` group only in a local window. A
