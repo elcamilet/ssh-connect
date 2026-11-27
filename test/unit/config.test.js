@@ -388,13 +388,17 @@ test('parseConfig rejects local startCommand without shell', () => {
                     {
                         type: 'local',
                         name: 'Local terminal',
+                        shellArgs: ['-lic'],
                         startCommand: 'opencode'
                     }
                 ]
             }
         ]
     };
-    assert.throws(() => parseConfig(JSON.stringify(config)), ConfigError);
+    assert.throws(
+        () => parseConfig(JSON.stringify(config)),
+        /shell and a non-empty shellArgs/
+    );
 });
 
 test('parseConfig rejects local startCommand without shellArgs', () => {
@@ -413,7 +417,7 @@ test('parseConfig rejects local startCommand without shellArgs', () => {
             }
         ]
     };
-    assert.throws(() => parseConfig(JSON.stringify(config)), ConfigError);
+    assert.throws(() => parseConfig(JSON.stringify(config)), /shellArgs/);
 });
 
 test('parseConfig rejects shellArgs without shell', () => {
@@ -425,7 +429,7 @@ test('parseConfig rejects shellArgs without shell', () => {
             }
         ]
     };
-    assert.throws(() => parseConfig(JSON.stringify(config)), ConfigError);
+    assert.throws(() => parseConfig(JSON.stringify(config)), /shell/);
 });
 
 test('parseConfig rejects non-string shellArgs items', () => {
@@ -437,7 +441,7 @@ test('parseConfig rejects non-string shellArgs items', () => {
             }
         ]
     };
-    assert.throws(() => parseConfig(JSON.stringify(config)), ConfigError);
+    assert.throws(() => parseConfig(JSON.stringify(config)), /shellArgs/);
 });
 
 test('parseConfig rejects a relative startingDirectory for a local host', () => {
@@ -455,10 +459,65 @@ test('parseConfig rejects a relative startingDirectory for a local host', () => 
             }
         ]
     };
-    assert.throws(() => parseConfig(JSON.stringify(config)), ConfigError);
+    assert.throws(() => parseConfig(JSON.stringify(config)), /absolute path/);
+});
+
+test('parseConfig rejects empty shellArgs values with a startCommand', () => {
+    const config = {
+        groups: [
+            {
+                name: 'Local',
+                hosts: [
+                    {
+                        type: 'local',
+                        name: 'Local terminal',
+                        shell: 'bash',
+                        shellArgs: [''],
+                        startCommand: 'opencode'
+                    }
+                ]
+            }
+        ]
+    };
+    assert.throws(() => parseConfig(JSON.stringify(config)), /empty strings/);
 });
 
 test('parseConfig warns about fields that do not apply to local hosts', () => {
+    const ignored = {
+        host: 'ignored',
+        port: 22,
+        identityFile: '/tmp/key',
+        user: 'dev',
+        group: 'ops',
+        useGroupPassword: 'no',
+        useIdentityFile: 'no',
+        forwardAgent: 'no',
+        connectTimeout: 10,
+        serverAliveInterval: 30,
+        serverAliveCountMax: 3,
+        retry: { enabled: false },
+        distribution: 'Ubuntu'
+    };
+    const result = parseConfig(
+        JSON.stringify({
+            groups: [
+                {
+                    name: 'Local',
+                    hosts: [{ type: 'local', name: 'Local terminal', ...ignored }]
+                }
+            ]
+        })
+    );
+    const warning = result.warnings.find((item) =>
+        item.includes('do not apply to Local hosts')
+    );
+    assert.ok(warning);
+    for (const key of Object.keys(ignored)) {
+        assert.match(warning, new RegExp(`\\b${key}\\b`));
+    }
+});
+
+test('parseConfig ignores invalid values in local fields that do not apply', () => {
     const result = parseConfig(
         JSON.stringify({
             groups: [
@@ -468,11 +527,12 @@ test('parseConfig warns about fields that do not apply to local hosts', () => {
                         {
                             type: 'local',
                             name: 'Local terminal',
-                            host: 'ignored',
-                            port: 22,
-                            user: 'dev',
-                            distribution: 'Ubuntu',
-                            retry: { enabled: false }
+                            port: 'abc',
+                            user: 42,
+                            identityFile: 42,
+                            group: 42,
+                            useGroupPassword: 'sometimes',
+                            retry: { maxAttempts: 99 }
                         }
                     ]
                 }
@@ -484,6 +544,139 @@ test('parseConfig warns about fields that do not apply to local hosts', () => {
             warning.includes('do not apply to Local hosts')
         )
     );
+});
+
+test('parseConfig ignores invalid shell fields on SSH hosts', () => {
+    const result = parseConfig(
+        JSON.stringify({
+            groups: [
+                {
+                    name: 'Dev',
+                    hosts: [
+                        {
+                            name: 'Dev 1',
+                            host: 'dev.example.com',
+                            shell: 123,
+                            shellArgs: '-l',
+                            startingDirectory: 42,
+                            distribution: 42
+                        }
+                    ]
+                }
+            ]
+        })
+    );
+    assert.ok(
+        result.warnings.some((warning) =>
+            warning.includes('do not apply to SSH hosts')
+        )
+    );
+});
+
+test('parseConfig ignores invalid shell fields on WSL hosts', () => {
+    const result = parseConfig(
+        JSON.stringify({
+            groups: [
+                {
+                    name: 'Local',
+                    hosts: [
+                        { type: 'wsl', name: 'WSL', shell: 123, shellArgs: '-l' }
+                    ]
+                }
+            ]
+        })
+    );
+    assert.ok(
+        result.warnings.some((warning) =>
+            warning.includes('do not apply to WSL hosts')
+        )
+    );
+});
+
+test('parseConfig treats null and empty shellArgs as absent without a shell', () => {
+    for (const shellArgs of [null, []]) {
+        const config = {
+            groups: [
+                {
+                    name: 'Local',
+                    hosts: [
+                        {
+                            type: 'local',
+                            name: 'Local terminal',
+                            shellArgs
+                        }
+                    ]
+                }
+            ]
+        };
+        assert.doesNotThrow(() => parseConfig(JSON.stringify(config)));
+    }
+});
+
+test('parseConfig warns when the last shellArgs is not a command flag', () => {
+    const result = parseConfig(
+        JSON.stringify({
+            groups: [
+                {
+                    name: 'Local',
+                    hosts: [
+                        {
+                            type: 'local',
+                            name: 'Bash',
+                            shell: 'bash',
+                            shellArgs: ['-l'],
+                            startCommand: 'opencode'
+                        }
+                    ]
+                }
+            ]
+        })
+    );
+    assert.ok(
+        result.warnings.some((warning) =>
+            warning.includes('shellArgs ending in "-l"')
+        )
+    );
+});
+
+test('parseConfig keeps the WSL group name without a warning', () => {
+    const result = parseConfig(
+        JSON.stringify({
+            groups: [
+                {
+                    name: 'Local',
+                    hosts: [{ type: 'wsl', name: 'WSL', group: 'ops' }]
+                }
+            ]
+        })
+    );
+    assert.deepEqual(result.warnings, []);
+    const connection = resolveConnection(
+        result.config.groups[0],
+        result.config.groups[0].hosts[0]
+    );
+    assert.equal(connection.groupName, 'ops');
+});
+
+test('resolveConnection ignores host.group for local entries', () => {
+    const result = parseConfig(
+        JSON.stringify({
+            groups: [
+                {
+                    name: 'Local',
+                    hosts: [{ type: 'local', name: 'Local terminal', group: 'ops' }]
+                }
+            ]
+        })
+    );
+    assert.ok(
+        result.warnings.some((warning) => warning.includes('group'))
+    );
+    const connection = resolveConnection(
+        result.config.groups[0],
+        result.config.groups[0].hosts[0]
+    );
+    assert.equal(connection.groupName, 'Local');
 });
 
 test('resolveConnection returns a local connection with defaults', () => {
@@ -558,6 +751,10 @@ test('createDefaultConfig adds a local example and a Windows WSL example', () =>
         windows.groups[0].hosts.map((host) => host.type),
         ['local', 'wsl']
     );
+    assert.deepEqual(
+        windows.groups[0].hosts.map((host) => host.name),
+        ['Local terminal', 'WSL']
+    );
     assert.deepEqual(parseConfig(JSON.stringify(windows)).warnings, []);
 
     const linux = createDefaultConfig('linux');
@@ -565,6 +762,10 @@ test('createDefaultConfig adds a local example and a Windows WSL example', () =>
     assert.deepEqual(
         linux.groups[0].hosts.map((host) => host.type),
         ['local']
+    );
+    assert.deepEqual(
+        linux.groups[0].hosts.map((host) => host.name),
+        ['Local terminal']
     );
     assert.deepEqual(parseConfig(JSON.stringify(linux)).warnings, []);
 });
@@ -576,4 +777,10 @@ test('createDefaultConfig omits the Local group in a remote window', () => {
         false
     );
     assert.deepEqual(parseConfig(JSON.stringify(remote)).warnings, []);
+
+    const remoteWindows = createDefaultConfig('win32', { isRemote: 'ssh-remote' });
+    assert.equal(
+        remoteWindows.groups.some((group) => group.name === 'Local'),
+        false
+    );
 });

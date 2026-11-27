@@ -6,7 +6,7 @@ const fs = require('fs');
 const { execFileSync } = require('child_process');
 const { createDefaultConfig, parseConfig, resolveConnection } = require('./lib/config');
 const { buildTerminalInvocation } = require('./lib/ssh');
-const { buildLocalInvocation } = require('./lib/local');
+const { buildLocalInvocation, canOpenLocal } = require('./lib/local');
 const { PasswordStore } = require('./lib/passwords');
 const { shouldRetry, retryDelayMs } = require('./lib/retry');
 
@@ -17,10 +17,13 @@ function getFixedSSHConfigPath(context) {
     const configPath = path.join(context.globalStorageUri.fsPath, 'ssh-config.json');
     if (!fs.existsSync(configPath)) {
         const template = createDefaultConfig(process.platform, {
-            isRemote: Boolean(vscode.env.remoteName)
+            isRemote: !canOpenLocal(vscode.env.remoteName)
         });
         fs.mkdirSync(path.dirname(configPath), { recursive: true });
         fs.writeFileSync(configPath, JSON.stringify(template, null, 2), 'utf-8');
+        if (process.platform !== 'win32') {
+            fs.chmodSync(configPath, 0o600);
+        }
     }
     return configPath;
 }
@@ -194,7 +197,10 @@ class SSHHostItem extends vscode.TreeItem {
         const kind = connection.kind;
         const isWsl = kind === 'wsl';
         const isLocal = kind === 'local';
-        const isSsh = !isWsl && !isLocal;
+        const isSsh = kind === 'ssh' || kind === undefined;
+        if (!isSsh && !isWsl && !isLocal) {
+            throw new Error(`Unsupported connection kind: ${kind}`);
+        }
 
         super(
             isSsh ? `${connection.name} (${connection.host})` : connection.name,
@@ -271,7 +277,7 @@ class SSHHostItem extends vscode.TreeItem {
 
 function targetFromItem(item) {
     if (item instanceof SSHHostItem) {
-        if (item.connection.kind !== 'ssh') {
+        if (item.connection.kind === 'wsl' || item.connection.kind === 'local') {
             return undefined;
         }
         const connection = item.connection;
@@ -452,7 +458,7 @@ function activate(context) {
 
     async function openConnection(connection, attempt = 1) {
         if (connection.kind === 'local') {
-            if (vscode.env.remoteName) {
+            if (!canOpenLocal(vscode.env.remoteName)) {
                 vscode.window.showErrorMessage(
                     'SSH Connect: local terminals are only available in local windows.'
                 );
@@ -460,9 +466,9 @@ function activate(context) {
             }
 
             const invocation = buildLocalInvocation(connection);
-            output.appendLine(`[connect] local ${connection.name} attempt ${attempt}`);
+            output.appendLine(`[connect] local ${connection.name}`);
             output.appendLine(
-                `[command] ${invocation.command} ${invocation.logArgs.join(' ')}`
+                `[command] ${[invocation.logCommand, ...invocation.logArgs].join(' ')}`
             );
 
             const terminal = openEditorTerminal({

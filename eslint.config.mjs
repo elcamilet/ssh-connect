@@ -3,7 +3,7 @@ import globals from 'globals';
 
 export default [
     {
-        ignores: ['node_modules/**', 'out/**', '*.vsix']
+        ignores: ['node_modules/**', 'out/**', '*.vsix', '.scratchpad/**']
     },
     js.configs.recommended,
     {
