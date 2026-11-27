@@ -4,8 +4,8 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const pkg = require('../../package.json');
 
-test('package manifest targets the 0.4.1 extension', () => {
-    assert.equal(pkg.version, '0.4.1');
+test('package manifest targets the 0.4.2 extension', () => {
+    assert.equal(pkg.version, '0.4.2');
     assert.equal(pkg.main, './extension.js');
     assert.equal(pkg.engines.vscode, '^1.96.0');
 });
