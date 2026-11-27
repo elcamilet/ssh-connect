@@ -16,7 +16,9 @@ const retryTimers = new Set();
 function getFixedSSHConfigPath(context) {
     const configPath = path.join(context.globalStorageUri.fsPath, 'ssh-config.json');
     if (!fs.existsSync(configPath)) {
-        const template = createDefaultConfig(process.platform);
+        const template = createDefaultConfig(process.platform, {
+            isRemote: Boolean(vscode.env.remoteName)
+        });
         fs.mkdirSync(path.dirname(configPath), { recursive: true });
         fs.writeFileSync(configPath, JSON.stringify(template, null, 2), 'utf-8');
     }

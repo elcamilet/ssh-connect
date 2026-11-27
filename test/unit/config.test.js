@@ -551,19 +551,29 @@ test('formatTerminalName supports the distribution placeholder', () => {
     );
 });
 
-test('createDefaultConfig adds a WSL example only on Windows', () => {
+test('createDefaultConfig adds a local example and a Windows WSL example', () => {
     const windows = createDefaultConfig('win32');
     assert.equal(windows.groups[0].name, 'Local');
-    assert.equal(windows.groups[0].hosts[0].type, 'wsl');
-    assert.equal(windows.groups[0].hosts[0].name, 'WSL');
+    assert.deepEqual(
+        windows.groups[0].hosts.map((host) => host.type),
+        ['local', 'wsl']
+    );
     assert.deepEqual(parseConfig(JSON.stringify(windows)).warnings, []);
 
     const linux = createDefaultConfig('linux');
-    assert.equal(
-        linux.groups.some((group) =>
-            group.hosts.some((host) => host.type === 'wsl')
-        ),
-        false
+    assert.equal(linux.groups[0].name, 'Local');
+    assert.deepEqual(
+        linux.groups[0].hosts.map((host) => host.type),
+        ['local']
     );
     assert.deepEqual(parseConfig(JSON.stringify(linux)).warnings, []);
+});
+
+test('createDefaultConfig omits the Local group in a remote window', () => {
+    const remote = createDefaultConfig('linux', { isRemote: true });
+    assert.equal(
+        remote.groups.some((group) => group.name === 'Local'),
+        false
+    );
+    assert.deepEqual(parseConfig(JSON.stringify(remote)).warnings, []);
 });
